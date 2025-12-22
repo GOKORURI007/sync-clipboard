@@ -13,7 +13,7 @@ class ClipboardSync:
         self.host = host
         self.port = port
         self.clipboard_content = ""
-        self.clients: Set[ClientConnection] = set()
+        self.clients: Set[ClientConnection | ServerConnection] = set()
         self.websocket: ClientConnection | ServerConnection | None = None
         self.is_syncing = False  # 防止循环同步
 
@@ -48,7 +48,7 @@ class ClipboardSync:
             print(f"服务器已启动，等待客户端连接...")
             await asyncio.Future()  # 运行直到被中断
 
-    async def handle_client(self, websocket):
+    async def handle_client(self, websocket: ServerConnection):
         """处理客户端连接"""
         print(f"新客户端已连接: {websocket.remote_address}")
         # 添加客户端到集合
@@ -101,21 +101,32 @@ class ClipboardSync:
     async def start_client(self):
         """启动客户端并监听剪贴板变化"""
         uri = f"ws://{self.host}:{self.port}"
-        print(f"正在连接到服务器 {uri}...")
+        retry_count = 0
+        max_retries = 10
 
-        try:
-            websocket = await websockets.connect(uri)
-            print("已连接到服务器")
-            self.websocket = websocket
+        while retry_count <= max_retries:
+            try:
+                print(f"正在连接到服务器 {uri}...")
+                websocket = await websockets.connect(uri)
+                print("已连接到服务器")
+                self.websocket = websocket
+                retry_count = 0  # 连接成功，重置重试计数
 
-            # 创建两个并发任务：一个监听剪贴板变化，一个接收服务器消息
-            await asyncio.gather(
-                self.monitor_clipboard(),
-                self.receive_messages()
-            )
-
-        except Exception as e:
-            print(f"连接错误: {e}")
+                # 创建两个并发任务：一个监听剪贴板变化，一个接收服务器消息
+                await asyncio.gather(
+                    self.monitor_clipboard(),
+                    self.receive_messages()
+                )
+            except Exception as e:
+                retry_count += 1
+                if retry_count <= max_retries:
+                    print(f"连接错误: {e}")
+                    print(f"3秒后尝试重新连接... (第 {retry_count}/{max_retries} 次)")
+                    await asyncio.sleep(3)  # 3 秒后重试
+                else:
+                    print(f"连接错误: {e}")
+                    print(f"已达到最大重试次数 ({max_retries})，程序退出")
+                    raise
 
     async def monitor_clipboard(self):
         """监控剪贴板变化"""
