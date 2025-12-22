@@ -1,10 +1,9 @@
 import asyncio
 import json
-import sys
+import platform
+
 import click
 import websockets
-import platform
-from typing import Optional
 
 
 class ClipboardSync:
@@ -12,8 +11,10 @@ class ClipboardSync:
         self.host = host
         self.port = port
         self.clipboard_content = ""
-        self.websocket: Optional[websockets.WebSocketServerProtocol] = None
-        
+        self.clients = set()
+        self.websocket = None
+        self.is_syncing = False  # 防止循环同步
+
         # 根据操作系统选择合适的剪贴板处理方式
         if platform.system() == "Windows":
             try:
@@ -45,54 +46,120 @@ class ClipboardSync:
             print(f"服务器已启动，等待客户端连接...")
             await asyncio.Future()  # 运行直到被中断
 
-    async def handle_client(self, websocket, path):
+    async def handle_client(self, websocket):
         """处理客户端连接"""
         print(f"新客户端已连接: {websocket.remote_address}")
-        self.websocket = websocket
-        
+        # 添加客户端到集合
+        self.clients.add(websocket)
+        print(websocket.__class__)
         try:
             async for message in websocket:
                 data = json.loads(message)
                 if data.get("type") == "clipboard_update":
                     content = data.get("content", "")
+                    sender = data.get("sender", "")
+
                     if content != self.clipboard_content:
-                        print(f"收到新的剪贴板内容: {content[:50]}...")
+                        print(f"收到 {sender} 的新剪贴板内容: {content[:50]}...")
+                        # 设置同步标志，避免循环
+                        self.is_syncing = True
                         self.clipboard_set(content)
                         self.clipboard_content = content
+                        self.is_syncing = False
+
+                        # 广播给其他客户端
+                        await self.broadcast_clipboard_update(content, sender, websocket)
         except websockets.exceptions.ConnectionClosed:
             print("客户端断开连接")
         finally:
-            if self.websocket == websocket:
-                self.websocket = None
+            # 移除客户端
+            self.clients.discard(websocket)
+
+    async def broadcast_clipboard_update(self, content, sender, sender_socket=None):
+        """广播剪贴板更新给所有客户端（除了发送者）"""
+        if not self.clients:
+            return
+
+        message = json.dumps({
+            "type": "clipboard_update",
+            "content": content,
+            "sender": sender
+        })
+
+        # 给所有客户端（除了发送者）发送更新
+        disconnected_clients = set()
+        for client in self.clients:
+            if client != sender_socket:
+                try:
+                    await client.send(message)
+                except websockets.exceptions.ConnectionClosed:
+                    disconnected_clients.add(client)
+
+        # 清理已断开的客户端
+        for client in disconnected_clients:
+            self.clients.discard(client)
 
     async def start_client(self):
         """启动客户端并监听剪贴板变化"""
         uri = f"ws://{self.host}:{self.port}"
         print(f"正在连接到服务器 {uri}...")
-        
+
         try:
             async with websockets.connect(uri) as websocket:
                 print("已连接到服务器")
                 self.websocket = websocket
-                
+
                 # 获取初始剪贴板内容
                 self.clipboard_content = self.clipboard_get()
-                
+
+                # 发送初始内容到服务器（标记为来自本机）
+                if self.clipboard_content:
+                    await websocket.send(json.dumps({
+                        "type": "clipboard_update",
+                        "content": self.clipboard_content,
+                        "sender": "client"
+                    }))
+
                 # 持续监听剪贴板变化
                 while True:
-                    await asyncio.sleep(0.5)  # 每0.5秒检查一次剪贴板
+                    await asyncio.sleep(0.5)  # 每 0.5 秒检查一次剪贴板
                     current_content = self.clipboard_get()
-                    
-                    if current_content != self.clipboard_content:
-                        print(f"检测到剪贴板更新: {current_content[:50]}...")
+
+                    # 如果不是在同步过程中且内容发生了变化
+                    if not self.is_syncing and current_content != self.clipboard_content:
+                        print(f"检测到本地剪贴板更新: {current_content[:50]}...")
                         self.clipboard_content = current_content
-                        
+
                         # 发送剪贴板内容到服务器
                         await websocket.send(json.dumps({
                             "type": "clipboard_update",
-                            "content": current_content
+                            "content": current_content,
+                            "sender": "client"
                         }))
-                        
+
+                    # 接收来自服务器的消息
+                    try:
+                        # 使用非阻塞方式接收消息
+                        message = await asyncio.wait_for(websocket.recv(), timeout=0.1)
+                        data = json.loads(message)
+                        if data.get("type") == "clipboard_update":
+                            content = data.get("content", "")
+                            sender = data.get("sender", "")
+
+                            # 如果不是自己发送的内容，则更新剪贴板
+                            if content != self.clipboard_content:
+                                print(f"收到 {sender} 的剪贴板更新: {content[:50]}...")
+                                self.is_syncing = True
+                                self.clipboard_set(content)
+                                self.clipboard_content = content
+                                self.is_syncing = False
+                    except asyncio.TimeoutError:
+                        # 超时没有消息，继续下一轮循环
+                        continue
+                    except websockets.exceptions.ConnectionClosed:
+                        print("与服务器连接已关闭")
+                        break
+
         except Exception as e:
             print(f"连接错误: {e}")
 
@@ -106,7 +173,8 @@ class ClipboardSync:
 
 
 @click.command()
-@click.option('--mode', '-m', type=click.Choice(['server', 'client'], case_sensitive=False),
+@click.option('--mode', '-m',
+              type=click.Choice(['server', 'client'], case_sensitive=False),
               help='运行模式: server 或 client')
 @click.option('--host', '-h', default='127.0.0.1', help='服务器主机地址')
 @click.option('--port', '-p', default=8765, type=int, help='服务器端口号')
@@ -118,7 +186,7 @@ def main(mode, host, port):
         return
 
     clipboard_sync = ClipboardSync(host, port)
-    
+
     try:
         if mode.lower() == 'server':
             print("以服务器模式运行...")
@@ -127,7 +195,7 @@ def main(mode, host, port):
             print("以客户端模式运行...")
             asyncio.run(clipboard_sync.run_as_client())
     except KeyboardInterrupt:
-        print("\\n程序已退出")
+        print("\n程序已退出")
 
 
 if __name__ == "__main__":
