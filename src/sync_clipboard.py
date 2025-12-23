@@ -6,7 +6,6 @@ import os
 import platform
 import sys
 import tomllib
-from functools import partial
 from pathlib import Path
 from typing import Set
 
@@ -258,7 +257,7 @@ class ClipboardSync:
         self.running = False
         if self.loop and self.loop.is_running():
             # 跨线程安全地在 loop 中执行取消逻辑
-            self.loop.call_soon_threadsafe(partial(self._cancel_all_tasks), [])
+            self.loop.call_soon_threadsafe(self._cancel_all_tasks)
 
     def _cancel_all_tasks(self):
         """在 loop 线程内执行的具体取消逻辑"""

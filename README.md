@@ -105,6 +105,30 @@ nix build
 
 构建后的可执行文件可通过 `./result/bin/sync-clipboard` 访问。
 
+## 自动发布
+
+本项目配置了GitHub Actions自动发布功能，当给某个commit打上`vX.Y.Z`格式的tag时，会自动执行以下操作：
+
+1. 从tag中提取版本号（去掉`v`前缀）
+2. 将提取的版本号更新到[pyproject.toml](./pyproject.toml)文件中
+3. 使用PyInstaller为Linux、Windows和macOS三个平台打包可执行文件
+4. 将打包好的可执行文件发布到GitHub Release中
+
+### 创建新版本
+
+```bash
+# 为当前commit打上版本tag
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+例如：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## 使用示例
 
 1. 在一台机器上启动服务器：
