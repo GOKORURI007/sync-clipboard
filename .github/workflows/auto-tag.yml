@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # 添加这一行，不需要额外参数
   push:
     branches:
-      - main
+      - master
     paths:
       - 'pyproject.toml' # 只有当这个文件改变时才触发
 
@@ -14,9 +14,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Get version
         id: get_version
@@ -31,9 +31,9 @@ jobs:
           if [ -z "$(git tag -l ${{ steps.get_version.outputs.tag }})" ]; then
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git tag ${{steps.get_version.outputs.tag}}
+            git push origin ${{steps.get_version.outputs.tag}}
             echo "Tagging ${{ steps.get_version.outputs.tag }}!!!"
-            # git tag ${{steps.get_version.outputs.tag}}
-            # git push origin ${{steps.get_version.outputs.tag}}
           else
             echo "Tag ${{ steps.get_version.outputs.tag }} already exists. Skipping."
           fi

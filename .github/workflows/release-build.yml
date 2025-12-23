@@ -1,0 +1,83 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  # 步骤 1: 创建 Release 记录
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Extract version
+        id: get_version
+        run: |
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            VERSION=${{ github.event.inputs.version_override }}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: ${{ github.ref }}
+          name: Release v${{ steps.get_version.outputs.version }}
+
+  # 步骤 2: 多平台编译打包
+  build:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            extension: "-linux"
+          - os: windows-latest
+            platform: windows
+            extension: ".exe"
+          - os: macos-latest
+            platform: macos
+            extension: "-macos"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      # 这里会自动使用你在 spec 文件里定义的名称，无需再次指定 --name
+      - name: Build with PyInstaller
+        run: |
+          uv run pyinstaller sync-clipboard.spec
+          uv run pyinstaller sync-clipboard-gui.spec
+
+      - name: Upload CLI Asset
+        uses: Shopify/upload-to-release@v2
+        with:
+          name: my-artifact
+          path: dist/sync-clipboard${{ matrix.extension }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload GUI Asset
+        uses: Shopify/upload-to-release@v2
+        with:
+          name: ${{ needs.create-release.outputs.upload_url }}
+          path: dist/sync-clipboard-gui${{ matrix.extension }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
