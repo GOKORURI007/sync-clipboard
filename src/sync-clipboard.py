@@ -1,6 +1,7 @@
 import asyncio
 import json
 import platform
+import socket
 from typing import Set
 
 import click
@@ -10,6 +11,7 @@ from websockets import ClientConnection, ServerConnection
 
 class ClipboardSync:
     def __init__(self, host: str, port: int):
+        self.hostname = socket.gethostname()
         self.host = host
         self.port = port
         self.clipboard_content = ""
@@ -154,7 +156,7 @@ class ClipboardSync:
                     await self.websocket.send(json.dumps({
                         "type": "clipboard_update",
                         "content": current_content,
-                        "sender": "client"
+                        "sender": self.hostname
                     }))
                 except websockets.exceptions.ConnectionClosed:
                     print("与服务器连接已断开")
@@ -170,7 +172,7 @@ class ClipboardSync:
                     sender = data.get("sender", "")
 
                     # 如果不是自己发送的内容，且不是空内容，则更新剪贴板
-                    if content != self.clipboard_content and content.strip():
+                    if content != self.clipboard_content and sender != self.hostname and content.strip():
                         print(
                             f"收到 {sender} 的剪贴板更新: {content[:50]}{'...' if len(content) > 50 else ''}")
                         self.is_syncing = True
