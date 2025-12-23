@@ -1,7 +1,7 @@
 [project]
 name = "sync-clipboard"
 version = "0.1.0"
-description = "Synchronizing the clipboard between different OS via WebSocket"
+description = "A extremely simple cross-platform clipboard synchronization tool using WebSockets."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

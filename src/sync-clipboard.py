@@ -107,7 +107,12 @@ class ClipboardSync:
         while retry_count <= max_retries:
             try:
                 print(f"正在连接到服务器 {uri}...")
-                websocket = await websockets.connect(uri)
+                websocket = await websockets.connect(
+                    uri,
+                    ping_interval=20,
+                    ping_timeout=10,
+                    close_timeout=5,
+                )
                 print("已连接到服务器")
                 self.websocket = websocket
                 retry_count = 0  # 连接成功，重置重试计数
@@ -183,6 +188,13 @@ class ClipboardSync:
         """作为客户端运行"""
         await self.start_client()
 
+    async def run_as_mix(self):
+        """作为客户端运行"""
+        await asyncio.gather(
+            self.start_server(),
+            self.start_client()
+        )
+
 
 @click.command()
 @click.option('--mode', '-m',
@@ -193,30 +205,19 @@ class ClipboardSync:
 def main(mode, host, port):
     """主函数"""
 
+    sync_clipboard = ClipboardSync(host, port)
+
     try:
         match mode.lower():
             case 'server':
                 print("以服务器模式运行...")
-                server = ClipboardSync(host, port)
-                asyncio.run(server.run_as_server())
+                asyncio.run(sync_clipboard.run_as_server())
             case 'mix':
                 print("以混合模式运行...")
-
-                # 定义一个辅助异步入口，用于处理混合模式
-                async def run_mixed():
-                    server_mix = ClipboardSync(host, port)
-                    client_mix = ClipboardSync(host, port)
-                    # 并发运行两个实例的方法
-                    await asyncio.gather(
-                        server_mix.run_as_server(),
-                        client_mix.run_as_client()
-                    )
-
-                asyncio.run(run_mixed())
+                asyncio.run(sync_clipboard.run_as_mix())
             case 'client':
                 print("以客户端模式运行...")
-                client = ClipboardSync(host, port)
-                asyncio.run(client.run_as_client())
+                asyncio.run(sync_clipboard.run_as_client())
 
             case _:
                 print("请指定运行模式: --mode server 或 --mode client 或 --mode mix")
