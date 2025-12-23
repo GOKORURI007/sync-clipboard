@@ -1,61 +1,86 @@
 {
-  description = "Synchronizing the clipboard between different OS via WebSocket";
+  description = ''
+    A extremely simple cross-platform clipboard synchronization tool using WebSockets.
+    Note: On Linux, it depends on xclip or xsel (in x11), or wl-clipboard (in wayland).
+    https://github.com/GOKORURI007/sync-clipboard
+  '';
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        packages = {
-          sync-clipboard = pkgs.python313Packages.buildPythonApplication {
+  outputs =
+    { self, nixpkgs }:
+    let
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      pkgsFor = system: import nixpkgs { inherit system; };
+    in
+    {
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+          pythonPkgs = pkgs.python3Packages;
+          deps = with pythonPkgs; [
+            websockets
+            click
+            pyperclip
+          ];
+        in
+        {
+          default = pkgs.stdenv.mkDerivation {
             pname = "sync-clipboard";
             version = "0.1.0";
             src = ./.;
-            pyproject = true;
 
-            nativeBuildInputs = with pkgs.python313Packages; [
-              setuptools
-              wheel
-            ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            buildInputs = [ pkgs.python3 ] ++ deps;
 
-            propagatedBuildInputs = with pkgs.python313Packages; [
-              websockets
-              click
-              pyperclip
-              customtkinter
-            ];
+            installPhase = ''
+              mkdir -p $out/bin
+              cp sync-clipboard.py $out/bin/.sync-clipboard-wrapped
 
-            # Make sure the main script is executable
-            postInstall = ''
-              install -Dm755 main.py $out/bin/sync-clipboard
+              makeWrapper ${pkgs.python3}/bin/python3 $out/bin/sync-clipboard \
+                --add-flags "$out/bin/.sync-clipboard-wrapped" \
+                --prefix PYTHONPATH : "$PYTHONPATH"
             '';
-
-            pythonImportsCheck = [ "sync-clipboard" ];
           };
+        }
+      );
 
-          default = self.packages.${system}.sync-clipboard;
-        };
+      # nix develop
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+        in
+        {
+          default = pkgs.mkShell {
+            buildInputs = [
+              (pkgs.python3.withPackages (
+                ps: with ps; [
+                  websockets
+                  click
+                  pyperclip
+                ]
+              ))
+            ];
+          };
+        }
+      );
 
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            pkgs.python313
-            pkgs.python313Packages.pip
-            pkgs.python313Packages.setuptools
-            pkgs.python313Packages.wheel
-            pkgs.python313Packages.websockets
-            pkgs.python313Packages.click
-            pkgs.python313Packages.pyperclip
-            pkgs.python313Packages.customtkinter
-          ];
-
-          # Set up environment variables if needed
-          SYNC_CLIPBOARD_ENV = "development";
+      # nix run
+      apps = forAllSystems (system: {
+        default = {
+          type = "app";
+          program = "${self.packages.${system}.default}/bin/sync-clipboard";
         };
       });
+    };
 }

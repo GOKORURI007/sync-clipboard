@@ -8,10 +8,12 @@ dependencies = [
     "websockets>=10.0",
     "click>=8.0",
     "pyperclip>=1.8",
-    "customtkinter>=5.2.2",
 ]
 
 [dependency-groups]
 dev = [
     "pyinstaller>=6.17.0",
 ]
+
+[project.scripts]
+sync-clipboard = "main:main"

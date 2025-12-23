@@ -51,13 +51,31 @@ python main.py --mode client --host SERVER_IP --port 8765
 
 ## 打包为可执行文件
 
+### 使用PyInstaller
+
 使用PyInstaller将程序打包为可执行文件：
 
 ```bash
 pyinstaller --onefile main.py
 ```
 
+或者使用项目提供的spec文件：
+
+```bash
+pyinstaller sync-clipboard.spec
+```
+
 打包后的可执行文件位于 `dist/` 目录中。
+
+### 使用Nix
+
+如果在NixOS系统上，也可以使用Nix来构建：
+
+```bash
+nix build
+```
+
+构建后的可执行文件可通过 `./result/bin/sync-clipboard` 访问。
 
 ## 使用示例
 
