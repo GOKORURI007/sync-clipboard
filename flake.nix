@@ -44,7 +44,7 @@
 
             installPhase = ''
               mkdir -p $out/bin
-              cp sync-clipboard.py $out/bin/.sync-clipboard-wrapped
+              cp ./src/sync-clipboard.py $out/bin/.sync-clipboard-wrapped
 
               makeWrapper ${pkgs.python3}/bin/python3 $out/bin/sync-clipboard \
                 --add-flags "$out/bin/.sync-clipboard-wrapped" \

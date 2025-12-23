@@ -186,26 +186,43 @@ class ClipboardSync:
 
 @click.command()
 @click.option('--mode', '-m',
-              type=click.Choice(['server', 'client'], case_sensitive=False),
-              help='运行模式: server 或 client')
+              type=click.Choice(['server', 'client', "mix"], case_sensitive=False),
+              help='运行模式: server 或 client 或 mix')
 @click.option('--host', '-h', default='127.0.0.1', help='服务器主机地址')
 @click.option('--port', '-p', default=8765, type=int, help='服务器端口号')
 def main(mode, host, port):
     """主函数"""
-    if mode is None:
-        print("请指定运行模式: --mode server 或 --mode client")
-        print("使用 --help 查看更多选项")
-        return
-
-    clipboard_sync = ClipboardSync(host, port)
 
     try:
-        if mode.lower() == 'server':
-            print("以服务器模式运行...")
-            asyncio.run(clipboard_sync.run_as_server())
-        else:
-            print("以客户端模式运行...")
-            asyncio.run(clipboard_sync.run_as_client())
+        match mode.lower():
+            case 'server':
+                print("以服务器模式运行...")
+                server = ClipboardSync(host, port)
+                asyncio.run(server.run_as_server())
+            case 'mix':
+                print("以混合模式运行...")
+
+                # 定义一个辅助异步入口，用于处理混合模式
+                async def run_mixed():
+                    server_mix = ClipboardSync(host, port)
+                    client_mix = ClipboardSync(host, port)
+                    # 并发运行两个实例的方法
+                    await asyncio.gather(
+                        server_mix.run_as_server(),
+                        client_mix.run_as_client()
+                    )
+
+                asyncio.run(run_mixed())
+            case 'client':
+                print("以客户端模式运行...")
+                client = ClipboardSync(host, port)
+                asyncio.run(client.run_as_client())
+
+            case _:
+                print("请指定运行模式: --mode server 或 --mode client 或 --mode mix")
+                print("使用 --help 查看更多选项")
+                return
+
     except KeyboardInterrupt:
         print("\n程序已退出")
 
