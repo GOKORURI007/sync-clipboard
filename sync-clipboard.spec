@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\sync_clipboard.py'],
+    ['src/sync_clipboard.py'],
     pathex=[],
     binaries=[],
     datas=[],
