@@ -8,6 +8,8 @@ dependencies = [
     "websockets>=10.0",
     "click>=8.0",
     "pyperclip>=1.8",
+    "customtkinter>=5.2.2",
+    "pystray>=0.19.5",
 ]
 
 [dependency-groups]
@@ -16,4 +18,5 @@ dev = [
 ]
 
 [project.scripts]
-sync-clipboard = "main:main"
+sync-clipboard = "src.sync_clipboard:main"
+sync-clipboard-gui = "src.sync_clipboard_gui:main"
