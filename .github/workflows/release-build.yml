@@ -10,51 +10,23 @@ permissions:
   contents: write
 
 jobs:
-  # 步骤 1: 创建 Release 记录
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
-    steps:
-      - name: Extract version
-        id: get_version
-        run: |
-          if [ -n "${{ github.event.inputs.version_override }}" ]; then
-            VERSION=${{ github.event.inputs.version_override }}
-          else
-            VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: ncipollo/release-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag: ${{ github.ref }}
-          name: Release v${{ steps.get_version.outputs.version }}
-
-  # 步骤 2: 多平台编译打包
-  build:
-    needs: create-release
+  build-and-release:
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             platform: linux
-            extension: "-linux"
+            suffix: linux
           - os: windows-latest
             platform: windows
-            extension: ".exe"
+            suffix: windows.exe
           - os: macos-latest
             platform: macos
-            extension: "-macos"
+            suffix: macos
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -62,22 +34,28 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      # 这里会自动使用你在 spec 文件里定义的名称，无需再次指定 --name
       - name: Build with PyInstaller
+        # 建议在 spec 文件里保持输出文件名统一，然后在这里重命名
         run: |
           uv run pyinstaller sync-clipboard.spec
           uv run pyinstaller sync-clipboard-gui.spec
 
-      - name: Upload CLI Asset
-        uses: Shopify/upload-to-release@v2
-        with:
-          name: my-artifact
-          path: dist/sync-clipboard${{ matrix.extension }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename artifacts for clarity
+        # 将 dist 里的通用文件名改为带平台标识的文件名，方便用户下载
+        shell: bash
+        run: |
+          mv dist/sync-clipboard dist/sync-clipboard-${{ matrix.suffix }}
+          mv dist/sync-clipboard-gui dist/sync-clipboard-gui-${{ matrix.suffix }}
 
-      - name: Upload GUI Asset
-        uses: Shopify/upload-to-release@v2
+      - name: Release and Upload Assets
+        uses: softprops/action-gh-release@v2
         with:
-          name: ${{ needs.create-release.outputs.upload_url }}
-          path: dist/sync-clipboard-gui${{ matrix.extension }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # files 支持通配符，会自动寻找并上传
+          files: |
+            dist/sync-clipboard-${{ matrix.suffix }}
+            dist/sync-clipboard-gui-${{ matrix.suffix }}
+          # 如果 Tag 不存在，它会自动创建 Release。如果已存在，它会把文件追加进去
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
