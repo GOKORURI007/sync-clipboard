@@ -17,7 +17,7 @@ import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem
 
-from sync_clipboard import ClipboardSync
+from sync_clipboard import __version__, ClipboardSync
 
 
 @dataclass
@@ -41,8 +41,12 @@ class SyncClipboardGUI:
 
         # 创建主窗口
         self.root = ctk.CTk()
-        self.root.title("Sync Clipboard - 图形界面")
-        self.root.geometry("600x700")
+        self.root.title(f"Sync Clipboard - v{__version__}")
+        width = 600
+        height = 800
+        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.root.winfo_screenheight() // 2) - (height // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
 
         # 读取配置
         self.config = self.load_config()
@@ -66,11 +70,6 @@ class SyncClipboardGUI:
         # 顶部配置区域
         config_frame = ctk.CTkFrame(self.root)
         config_frame.pack(pady=10, padx=20, fill="x")
-
-        # 标题
-        title_label = ctk.CTkLabel(config_frame, text="Sync Clipboard 配置",
-                                   font=ctk.CTkFont(size=16, weight="bold"))
-        title_label.pack(pady=10)
 
         # Mode 选择
         mode_frame = ctk.CTkFrame(config_frame)
@@ -160,14 +159,6 @@ class SyncClipboardGUI:
         # 创建文本框和滚动条
         self.log_text = ctk.CTkTextbox(log_frame, height=200)
         self.log_text.pack(pady=5, padx=10, fill="both", expand=True)
-
-        # 最小化到托盘按钮
-        tray_button_frame = ctk.CTkFrame(self.root)
-        tray_button_frame.pack(pady=5, padx=20, fill="x")
-
-        tray_button = ctk.CTkButton(tray_button_frame, text="最小化到托盘",
-                                    command=self.minimize_to_tray)
-        tray_button.pack(pady=5)
 
     def create_tray_icon(self):
         """创建系统托盘图标"""

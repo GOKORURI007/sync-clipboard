@@ -10,7 +10,7 @@
   };
 
   outputs =
-    { self, nixpkgs }:
+    {self, nixpkgs}:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -19,7 +19,9 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      pkgsFor = system: import nixpkgs { inherit system; };
+      pkgsFor = system: import nixpkgs {inherit system;};
+      pyproject = builtins.fromTOML (builtins.readFile ./pyproject.toml);
+      version = pyproject.project.version;
     in
     {
       packages = forAllSystems (
@@ -39,8 +41,8 @@
             version = "0.1.0";
             src = ./.;
 
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-            buildInputs = [ pkgs.python3 ] ++ deps;
+            nativeBuildInputs = [pkgs.makeWrapper];
+            buildInputs = [pkgs.python3] ++ deps;
 
             installPhase = ''
               mkdir -p $out/bin
@@ -48,6 +50,7 @@
 
               makeWrapper ${pkgs.python3}/bin/python3 $out/bin/sync-clipboard \
                 --add-flags "$out/bin/.sync_clipboard_wrapped" \
+                --set APP_VERSION "${version}" \
                 --prefix PYTHONPATH : "$PYTHONPATH"
             '';
           };

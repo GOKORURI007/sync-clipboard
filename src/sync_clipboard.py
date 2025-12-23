@@ -2,7 +2,12 @@
 # -*- coding:utf-8 -*-
 import asyncio
 import json
+import os
 import platform
+import sys
+import tomllib
+from functools import partial
+from pathlib import Path
 from typing import Set
 
 import click
@@ -10,7 +15,36 @@ import websockets
 from websockets import ClientConnection, ServerConnection
 
 
+def get_version():
+    # 1. 优先尝试 Nix 注入的环境变量 (适用于 nix build)
+    nix_version = os.getenv("APP_VERSION")
+    if nix_version:
+        return nix_version
+
+    # 2. 尝试从 PyInstaller 打包后的路径读取
+    # PyInstaller 运行时会创建 _MEIPASS 临时目录
+    if getattr(sys, 'frozen', False):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).resolve().parent.parent
+
+    toml_path = base_path / "pyproject.toml"
+
+    if toml_path.exists():
+        try:
+            with open(toml_path, "rb") as f:
+                return tomllib.load(f).get("project", {}).get("version", "0.1.0")
+        except FileNotFoundError as e:
+            print(e)
+
+    return "unknown"  # 最终保底版本
+
+
+__version__ = get_version()
+
+
 class ClipboardSync:
+
     def __init__(
         self,
         host: str = "127.0.0.1",
@@ -224,12 +258,14 @@ class ClipboardSync:
         self.running = False
         if self.loop and self.loop.is_running():
             # 跨线程安全地在 loop 中执行取消逻辑
-            self.loop.call_soon_threadsafe(self._cancel_all_tasks)
+            self.loop.call_soon_threadsafe(partial(self._cancel_all_tasks), [])
 
     def _cancel_all_tasks(self):
         """在 loop 线程内执行的具体取消逻辑"""
+        current = asyncio.current_task(self.loop)
         for task in asyncio.all_tasks(self.loop):
-            task.cancel()
+            if task is not current:
+                task.cancel()
 
     def start_sync(self):
         """启动服务 (执行线程)"""
@@ -255,7 +291,8 @@ class ClipboardSync:
 
     def _cleanup_tasks_sync(self):
         """同步包装异步清理"""
-        if not self.loop: return
+        if not self.loop:
+            return
 
         # 再次启动 loop 运行清理任务，完成后再次自动 stop
         pending = asyncio.all_tasks(self.loop)
@@ -273,6 +310,8 @@ class ClipboardSync:
               help='运行模式: server 或 client 或 mix')
 @click.option('--host', '-h', default='127.0.0.1', help='服务器主机地址')
 @click.option('--port', '-p', default=8765, type=int, help='服务器端口号')
+@click.version_option(__version__, '--version', '-v',
+                      message="Sync Clipboard: %(version)s")
 def main(mode, host, port):
     """主函数"""
     if mode.lower() not in ['server', 'client', "mix"]:

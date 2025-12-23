@@ -5,7 +5,7 @@ a = Analysis(
     ['src/sync_clipboard.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('pyproject.toml', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
