@@ -1,0 +1,39 @@
+name: Auto Tag on Version Bump
+
+on:
+  workflow_dispatch:  # 添加这一行，不需要额外参数
+  push:
+    branches:
+      - main
+    paths:
+      - 'pyproject.toml' # 只有当这个文件改变时才触发
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Get version
+        id: get_version
+        run: |
+          # 提取版本号并存入变量
+          VERSION=$(grep -E '^version = ' pyproject.toml | cut -d '"' -f 2)
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Push Tag if new
+        run: |
+          # 使用 git tag -l 检查本地是否已经有了这个标签（因为 fetch-tags: true）
+          if [ -z "$(git tag -l ${{ steps.get_version.outputs.tag }})" ]; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            echo "Tagging ${{ steps.get_version.outputs.tag }}!!!"
+            # git tag ${{steps.get_version.outputs.tag}}
+            # git push origin ${{steps.get_version.outputs.tag}}
+          else
+            echo "Tag ${{ steps.get_version.outputs.tag }} already exists. Skipping."
+          fi
