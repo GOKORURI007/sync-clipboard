@@ -17,7 +17,7 @@ import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem
 
-from src.sync_clipboard import ClipboardSync
+from sync_clipboard import ClipboardSync
 
 
 @dataclass

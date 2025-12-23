@@ -16,7 +16,3 @@ dependencies = [
 dev = [
     "pyinstaller>=6.17.0",
 ]
-
-[project.scripts]
-sync-clipboard = "src.sync_clipboard:main"
-sync-clipboard-gui = "src.sync_clipboard_gui:main"
