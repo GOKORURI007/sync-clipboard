@@ -12,6 +12,13 @@ dependencies = [
     "pystray>=0.19.5",
 ]
 
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages]
+find = { }   # 自动发现根目录下的包
+
 [dependency-groups]
 dev = [
     "pyinstaller>=6.17.0",
@@ -21,3 +28,8 @@ test = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21.0",
 ]
+
+[project.scripts]
+# 左边 = 用户敲的命令；右边 = 包.模块:函数/对象
+sync-clipboard = "src.sync_clipboard_cli:main"      # CLI
+sync-clipboard-gui = "src.sync_clipboard_gui:main"  # GUI

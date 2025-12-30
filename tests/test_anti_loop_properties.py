@@ -5,17 +5,15 @@ Property-based tests for anti-loop mechanism
 Tests Properties 3, 11, and 12 from the design document
 """
 import asyncio
-import platform
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, List, Optional
 from contextlib import contextmanager
+from typing import List
+from unittest.mock import patch
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
-from hypothesis.strategies import text, integers, booleans
+from hypothesis import assume, given, HealthCheck, settings, strategies as st
+from hypothesis.strategies import booleans, integers, text
 
-from src.sync_clipboard import SyncServer, SyncClient, ClipboardMonitor, Message
+from src.sync_clipboard_cli import ClipboardMonitor, Message, SyncClient, SyncServer
 
 
 class MockWebSocket:

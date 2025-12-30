@@ -10,16 +10,16 @@ import platform
 import sys
 import threading
 from dataclasses import dataclass
-from tkinter import messagebox
 
 import customtkinter as ctk
 import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem
 
-from sync_clipboard import __version__, ClipboardSync
-from core.logging_utils import get_logger
-from core.exceptions import SyncClipboardError, ConnectionError, ConfigurationError, ClipboardAccessError
+from src.core.exceptions import ClipboardAccessError, ClipboardConnectionError, \
+    ConfigurationError, SyncClipboardError
+from src.core.logging_utils import get_logger
+from src.sync_clipboard_cli import __version__, ClipboardSync
 
 
 @dataclass
@@ -403,7 +403,7 @@ class SyncClipboardGUI:
             def run_sync():
                 try:
                     self.sync_instance.start_sync()
-                except ConnectionError as e:
+                except ClipboardConnectionError as e:
                     self.log_message(f"连接错误: {e}")
                     self.logger.error(f"连接错误: {e}")
                 except ClipboardAccessError as e:

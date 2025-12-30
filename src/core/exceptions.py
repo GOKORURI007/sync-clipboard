@@ -10,7 +10,7 @@ class SyncClipboardError(Exception):
     pass
 
 
-class ConnectionError(SyncClipboardError):
+class ClipboardConnectionError(SyncClipboardError):
     """连接相关错误"""
     pass
 

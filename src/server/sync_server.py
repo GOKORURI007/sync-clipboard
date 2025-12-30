@@ -9,10 +9,10 @@ from typing import Dict, Optional
 import websockets
 from websockets import ServerConnection
 
-from ..core.protocol import Message
 from ..core.clipboard import ClipboardMonitor
-from ..core.exceptions import ConnectionError, MessageFormatError
+from ..core.exceptions import ClipboardConnectionError
 from ..core.logging_utils import get_logger
+from ..core.protocol import Message
 
 
 class SyncServer:
@@ -48,7 +48,8 @@ class SyncServer:
                 await self.server.wait_closed()
         except OSError as e:
             self.logger.error(f"网络错误，无法启动服务器: {e}", exc_info=True)
-            raise ConnectionError(f"无法在 {self.host}:{self.port} 启动服务器: {e}")
+            raise ClipboardConnectionError(
+                f"无法在 {self.host}:{self.port} 启动服务器: {e}")
         except Exception as e:
             self.logger.error(f"启动服务器时发生未知错误: {e}", exc_info=True)
             raise
@@ -61,7 +62,7 @@ class SyncServer:
             await self.server.wait_closed()
         except OSError as e:
             self.logger.error(f"WebSocket服务器启动失败: {e}", exc_info=True)
-            raise ConnectionError(f"WebSocket服务器启动失败: {e}")
+            raise ClipboardConnectionError(f"WebSocket服务器启动失败: {e}")
         except Exception as e:
             self.logger.error(f"WebSocket服务器发生未知错误: {e}", exc_info=True)
             raise

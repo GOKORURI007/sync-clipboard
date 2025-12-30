@@ -9,10 +9,10 @@ from typing import Optional
 import websockets
 from websockets import ClientConnection
 
-from ..core.protocol import Message
 from ..core.clipboard import ClipboardMonitor
-from ..core.exceptions import ConnectionError, MessageFormatError
+from ..core.exceptions import ClipboardConnectionError
 from ..core.logging_utils import get_logger
+from ..core.protocol import Message
 
 
 class SyncClient:
@@ -46,8 +46,8 @@ class SyncClient:
                 receive_task = asyncio.create_task(self._receive_messages())
                 
                 await asyncio.gather(monitor_task, receive_task)
-                
-            except ConnectionError as e:
+
+            except ClipboardConnectionError as e:
                 self.logger.error(f"连接错误: {e}")
                 if self.auto_reconnect_enabled and self.running:
                     await self.attempt_reconnect()
@@ -99,16 +99,16 @@ class SyncClient:
             
         except asyncio.TimeoutError:
             self.logger.error(f"连接服务器超时: {uri}")
-            raise ConnectionError(f"连接服务器超时: {uri}")
+            raise ClipboardConnectionError(f"连接服务器超时: {uri}")
         except OSError as e:
             self.logger.error(f"网络连接失败: {e}")
-            raise ConnectionError(f"网络连接失败: {e}")
+            raise ClipboardConnectionError(f"网络连接失败: {e}")
         except websockets.exceptions.WebSocketException as e:
             self.logger.error(f"WebSocket连接失败: {e}")
-            raise ConnectionError(f"WebSocket连接失败: {e}")
+            raise ClipboardConnectionError(f"WebSocket连接失败: {e}")
         except Exception as e:
             self.logger.error(f"连接时发生未知错误: {e}", exc_info=True)
-            raise ConnectionError(f"连接时发生未知错误: {e}")
+            raise ClipboardConnectionError(f"连接时发生未知错误: {e}")
     
     async def _on_local_clipboard_change(self, content: str) -> None:
         """本地剪贴板变化回调"""
@@ -129,10 +129,10 @@ class SyncClient:
                 await self.websocket.send(message.to_json())
             except websockets.exceptions.ConnectionClosed:
                 self.logger.warning("与服务器连接已断开")
-                raise ConnectionError("与服务器连接已断开")
+                raise ClipboardConnectionError("与服务器连接已断开")
             except websockets.exceptions.WebSocketException as e:
                 self.logger.error(f"发送消息失败: {e}")
-                raise ConnectionError(f"发送消息失败: {e}")
+                raise ClipboardConnectionError(f"发送消息失败: {e}")
             except Exception as e:
                 self.logger.error(f"发送剪贴板更新时发生未知错误: {e}", exc_info=True)
                 raise
@@ -149,10 +149,10 @@ class SyncClient:
                     continue
         except websockets.exceptions.ConnectionClosed:
             self.logger.info("与服务器连接已断开")
-            raise ConnectionError("与服务器连接已断开")
+            raise ClipboardConnectionError("与服务器连接已断开")
         except websockets.exceptions.WebSocketException as e:
             self.logger.error(f"接收消息时发生WebSocket错误: {e}")
-            raise ConnectionError(f"接收消息时发生WebSocket错误: {e}")
+            raise ClipboardConnectionError(f"接收消息时发生WebSocket错误: {e}")
         except Exception as e:
             self.logger.error(f"接收消息时发生未知错误: {e}", exc_info=True)
             raise
