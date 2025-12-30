@@ -18,6 +18,8 @@ from PIL import Image, ImageDraw
 from pystray import MenuItem
 
 from sync_clipboard import __version__, ClipboardSync
+from core.logging_utils import get_logger
+from core.exceptions import SyncClipboardError, ConnectionError, ConfigurationError, ClipboardAccessError
 
 
 @dataclass
@@ -38,6 +40,9 @@ class SyncClipboardGUI:
         # 设置主题
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
+
+        # 初始化日志记录器
+        self.logger = get_logger("gui")
 
         # 创建主窗口
         self.root = ctk.CTk()
@@ -62,6 +67,9 @@ class SyncClipboardGUI:
         # 创建界面
         self.create_widgets()
 
+        # 初始化自动保存定时器
+        self.auto_save_timer = None
+
         # 绑定窗口关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -79,16 +87,16 @@ class SyncClipboardGUI:
         mode_label.pack(pady=5, anchor="w", padx=10)
 
         self.mode_var = ctk.StringVar(value=self.config.mode)
+        # 添加自动保存回调
+        self.mode_var.trace_add("write", self.on_config_change)
+        
         mode_server_radio = ctk.CTkRadioButton(mode_frame, text="服务器 (server)",
                                                variable=self.mode_var, value="server")
         mode_client_radio = ctk.CTkRadioButton(mode_frame, text="客户端 (client)",
                                                variable=self.mode_var, value="client")
-        mode_mix_radio = ctk.CTkRadioButton(mode_frame, text="混合 (mix)",
-                                            variable=self.mode_var, value="mix")
 
         mode_server_radio.pack(pady=2, anchor="w", padx=30)
         mode_client_radio.pack(pady=2, anchor="w", padx=30)
-        mode_mix_radio.pack(pady=2, anchor="w", padx=30)
 
         # Host 配置
         host_frame = ctk.CTkFrame(config_frame)
@@ -99,6 +107,9 @@ class SyncClipboardGUI:
 
         self.host_entry = ctk.CTkEntry(host_frame, placeholder_text="输入主机地址")
         self.host_entry.insert(0, self.config.host)
+        # 添加自动保存回调
+        self.host_entry.bind("<FocusOut>", self.on_config_change)
+        self.host_entry.bind("<KeyRelease>", self.on_config_change_delayed)
         self.host_entry.pack(pady=5, padx=20, fill="x")
 
         # Port 配置
@@ -110,6 +121,9 @@ class SyncClipboardGUI:
 
         self.port_entry = ctk.CTkEntry(port_frame, placeholder_text="输入端口号")
         self.port_entry.insert(0, str(self.config.port))
+        # 添加自动保存回调和验证
+        self.port_entry.bind("<FocusOut>", self.on_config_change)
+        self.port_entry.bind("<KeyRelease>", self.on_config_change_delayed)
         self.port_entry.pack(pady=5, padx=20, fill="x")
 
         # Hostname 配置
@@ -121,6 +135,9 @@ class SyncClipboardGUI:
 
         self.hostname_entry = ctk.CTkEntry(hostname_frame, placeholder_text="输入主机名")
         self.hostname_entry.insert(0, self.config.hostname)
+        # 添加自动保存回调
+        self.hostname_entry.bind("<FocusOut>", self.on_config_change)
+        self.hostname_entry.bind("<KeyRelease>", self.on_config_change_delayed)
         self.hostname_entry.pack(pady=5, padx=20, fill="x")
 
         # 按钮区域
@@ -186,93 +203,265 @@ class SyncClipboardGUI:
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
+                    
+                    # 验证和清理配置数据
+                    mode = config_data.get('mode', 'client')
+                    if mode not in ['server', 'client']:
+                        print(f"无效的模式 '{mode}'，使用默认值 'client'")
+                        mode = 'client'
+                    
+                    # 验证端口号
+                    port = config_data.get('port', 8765)
+                    try:
+                        port = int(port)
+                        if not (1 <= port <= 65535):
+                            print(f"无效的端口号 {port}，使用默认值 8765")
+                            port = 8765
+                    except (ValueError, TypeError):
+                        print(f"无效的端口号格式，使用默认值 8765")
+                        port = 8765
+                    
+                    # 验证主机地址
+                    host = config_data.get('host', '127.0.0.1')
+                    if not host or not isinstance(host, str):
+                        host = '127.0.0.1'
+                    
+                    # 验证主机名
+                    hostname = config_data.get('hostname', platform.node())
+                    if not hostname or not isinstance(hostname, str):
+                        hostname = platform.node()
+                    
                     return Config(
-                        mode=config_data.get('mode', 'client'),
-                        host=config_data.get('host', '127.0.0.1'),
-                        port=config_data.get('port', 8765),
-                        hostname=config_data.get('hostname', platform.node()),
+                        mode=mode,
+                        host=host,
+                        port=port,
+                        hostname=hostname,
                         minimize_on_close=config_data.get('minimize_on_close', False)
                     )
             else:
-                # 如果配置文件不存在，返回默认配置
-                return Config()
+                # 如果配置文件不存在，返回默认配置并创建文件
+                default_config = Config()
+                print("配置文件不存在，使用默认配置")
+                # 自动保存默认配置
+                self._save_config_to_file_silent(default_config)
+                return default_config
         except Exception as e:
-            print(f"加载配置失败: {e}")
-            return Config()
+            self.logger.error(f"加载配置失败: {e}，使用默认配置")
+            default_config = Config()
+            # 尝试保存默认配置
+            try:
+                self._save_config_to_file_silent(default_config)
+            except Exception as save_error:
+                self.logger.warning(f"保存默认配置失败: {save_error}")
+            return default_config
 
-    def save_config(self):
-        """保存配置到文件"""
+    def _save_config_to_file_silent(self, config: Config) -> bool:
+        """静默保存配置到文件（不输出日志）"""
         config_path = os.path.join(os.path.dirname(__file__), "config.json")
         try:
             config_data = {
-                'mode': self.mode_var.get(),
-                'host': self.host_entry.get(),
-                'port': int(self.port_entry.get()),
-                'hostname': self.hostname_entry.get(),
-                'minimize_on_close': self.config.minimize_on_close
+                'mode': config.mode,
+                'host': config.host,
+                'port': config.port,
+                'hostname': config.hostname,
+                'minimize_on_close': config.minimize_on_close
+            }
+
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+            return True
+        except Exception:
+            return False
+
+    def save_config(self):
+        """保存配置到文件"""
+        try:
+            # 验证输入
+            mode = self.mode_var.get()
+            if mode not in ['server', 'client']:
+                error_msg = f"无效的模式: {mode}"
+                self.log_message(error_msg)
+                self.logger.error(error_msg)
+                return False
+            
+            host = self.host_entry.get().strip()
+            if not host:
+                error_msg = "主机地址不能为空"
+                self.log_message(error_msg)
+                self.logger.error(error_msg)
+                return False
+            
+            try:
+                port = int(self.port_entry.get())
+                if not (1 <= port <= 65535):
+                    error_msg = "端口号必须在 1-65535 范围内"
+                    self.log_message(error_msg)
+                    self.logger.error(error_msg)
+                    return False
+            except ValueError:
+                error_msg = "端口号必须是数字"
+                self.log_message(error_msg)
+                self.logger.error(error_msg)
+                return False
+            
+            hostname = self.hostname_entry.get().strip()
+            if not hostname:
+                hostname = platform.node()
+                self.hostname_entry.delete(0, 'end')
+                self.hostname_entry.insert(0, hostname)
+                self.logger.info(f"使用默认主机名: {hostname}")
+            
+            # 更新配置对象
+            self.config.mode = mode
+            self.config.host = host
+            self.config.port = port
+            self.config.hostname = hostname
+            
+            # 保存到文件
+            return self._save_config_to_file(self.config)
+            
+        except ConfigurationError as e:
+            error_msg = f"配置错误: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg)
+            return False
+        except Exception as e:
+            error_msg = f"保存配置时发生未知错误: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg, exc_info=True)
+            return False
+
+    def _save_config_to_file(self, config: Config) -> bool:
+        """内部方法：保存配置到文件"""
+        config_path = os.path.join(os.path.dirname(__file__), "config.json")
+        try:
+            config_data = {
+                'mode': config.mode,
+                'host': config.host,
+                'port': config.port,
+                'hostname': config.hostname,
+                'minimize_on_close': config.minimize_on_close
             }
 
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=2, ensure_ascii=False)
 
             self.log_message("配置已保存")
+            self.logger.info("配置已成功保存到文件")
+            return True
+        except OSError as e:
+            error_msg = f"文件操作失败: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg)
+            return False
         except Exception as e:
-            self.log_message(f"保存配置失败: {e}")
+            error_msg = f"保存配置失败: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg, exc_info=True)
+            return False
+
+    def on_config_change(self, *args):
+        """配置变更时的回调（立即触发）"""
+        # 取消之前的定时器
+        if self.auto_save_timer:
+            self.root.after_cancel(self.auto_save_timer)
+        
+        # 立即保存配置
+        self.save_config()
+
+    def on_config_change_delayed(self, *args):
+        """配置变更时的延迟回调（用于键盘输入）"""
+        # 取消之前的定时器
+        if self.auto_save_timer:
+            self.root.after_cancel(self.auto_save_timer)
+        
+        # 设置延迟保存（1秒后）
+        self.auto_save_timer = self.root.after(1000, self.save_config)
 
     def on_start_btn_click(self):
         """开始同步"""
-        # 更新配置
         try:
-            self.config.mode = self.mode_var.get()
-            self.config.host = self.host_entry.get()
-            self.config.port = int(self.port_entry.get())
-            self.config.hostname = self.hostname_entry.get()
-        except ValueError:
-            messagebox.showerror("错误", "端口号必须是数字！")
-            return
+            # 保存并验证配置
+            if not self.save_config():
+                return  # 配置验证失败，不启动
 
-        # 保存配置
-        self.save_config()
+            # 如果已经在运行，则先停止
+            if self.sync_instance and self.sync_instance.running:
+                self.on_stop_btn_click()
 
-        # 如果已经在运行，则先停止
-        if self.sync_instance and self.sync_instance.running:
-            self.on_stop_btn_click()
+            # 创建新的同步实例
+            self.sync_instance = ClipboardSync(
+                host=self.config.host,
+                port=self.config.port,
+                mode=self.config.mode,
+                hostname=self.config.hostname,
+                log_callback=self.log_message
+            )
 
-        # 创建新的同步实例
-        self.sync_instance = ClipboardSync(
-            host=self.config.host,
-            port=self.config.port,
-            mode=self.config.mode,
-            hostname=self.config.hostname,
-            log_callback=self.log_message
-        )
+            # 在新线程中启动同步
+            def run_sync():
+                try:
+                    self.sync_instance.start_sync()
+                except ConnectionError as e:
+                    self.log_message(f"连接错误: {e}")
+                    self.logger.error(f"连接错误: {e}")
+                except ClipboardAccessError as e:
+                    self.log_message(f"剪贴板访问错误: {e}")
+                    self.logger.warning(f"剪贴板访问错误: {e}")
+                except SyncClipboardError as e:
+                    self.log_message(f"同步错误: {e}")
+                    self.logger.error(f"同步错误: {e}")
+                except Exception as e:
+                    self.log_message(f"同步服务发生未知错误: {e}")
+                    self.logger.error(f"同步服务发生未知错误: {e}", exc_info=True)
 
-        # 在新线程中启动同步
-        def run_sync():
-            self.sync_instance.start_sync()
+            self.sync_thread = threading.Thread(target=run_sync, daemon=True)
+            self.sync_thread.start()
 
-        self.sync_thread = threading.Thread(target=run_sync, daemon=True)
-        self.sync_thread.start()
-
-        self.log_message(
-            f"已启动同步服务，模式: {self.config.mode}, 地址: {self.config.host}:{self.config.port}")
+            self.log_message(
+                f"已启动同步服务，模式: {self.config.mode}, 地址: {self.config.host}:{self.config.port}")
+            self.logger.info(f"同步服务已启动: {self.config.mode} 模式，{self.config.host}:{self.config.port}")
+            
+        except Exception as e:
+            error_msg = f"启动同步服务失败: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg, exc_info=True)
 
     def on_stop_btn_click(self):
         """停止同步"""
-        if self.sync_instance:
-            self.sync_instance.stop_sync()
-            self.log_message("同步服务已停止")
-        else:
-            self.log_message("没有运行中的同步服务")
+        try:
+            if self.sync_instance:
+                self.sync_instance.stop_sync()
+                self.log_message("同步服务已停止")
+                self.logger.info("同步服务已停止")
+            else:
+                self.log_message("没有运行中的同步服务")
+                self.logger.warning("尝试停止同步服务，但没有运行中的服务")
+        except Exception as e:
+            error_msg = f"停止同步服务时发生错误: {e}"
+            self.log_message(error_msg)
+            self.logger.error(error_msg, exc_info=True)
 
     def exit_app(self):
         """退出应用程序"""
-        if self.sync_instance:
-            self.sync_instance.stop_sync()
-        self.tray_icon.stop()
-        self.root.quit()
-        self.root.destroy()
-        sys.exit()
+        try:
+            # 保存最终配置
+            self.save_config()
+            
+            if self.sync_instance:
+                self.sync_instance.stop_sync()
+                self.logger.info("同步服务已停止，准备退出应用")
+            
+            self.tray_icon.stop()
+            self.root.quit()
+            self.root.destroy()
+            self.logger.info("应用程序已退出")
+            sys.exit()
+        except Exception as e:
+            self.logger.error(f"退出应用程序时发生错误: {e}", exc_info=True)
+            # 强制退出
+            sys.exit(1)
 
     def log_message(self, message: str):
         """在日志区域添加消息"""

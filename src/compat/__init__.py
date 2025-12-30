@@ -1,0 +1,1 @@
+# Compatibility module for sync-clipboard

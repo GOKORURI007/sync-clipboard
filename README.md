@@ -1,144 +1,299 @@
-# sync-clipboard
+# SyncClipboard | 剪贴板同步工具
 
-通过WebSocket在不同操作系统之间同步剪贴板内容的工具。
+[English](#english) | [中文](#中文)
 
-## 功能特点
+---
 
-- 基于WebSocket实现实时剪贴板同步
-- 支持Windows和Linux操作系统
-- 可通过命令行参数配置IP地址和端口号
-- 支持使用PyInstaller打包为可执行文件
-- 提供图形用户界面（GUI）版本
+## 中文
 
-## 安装依赖
+通过WebSocket在不同操作系统之间实时同步剪贴板内容的工具。采用标准的Server-Client架构，提供稳定可靠的跨设备剪贴板同步体验。
 
-首先安装项目所需依赖：
+### 功能特点
 
+- 🚀 **实时同步** - 基于WebSocket实现毫秒级剪贴板同步
+- 🔄 **防回环机制** - 智能防止剪贴板内容无限循环同步
+- 🖥️ **跨平台支持** - 支持Windows和Linux操作系统
+- 🔌 **自动重连** - 客户端断线后自动重连，确保服务稳定性
+- 🎛️ **双界面模式** - 提供命令行和图形界面两种使用方式
+- ⚙️ **灵活配置** - 支持自定义IP地址、端口和主机名
+- 📦 **便携部署** - 支持打包为独立可执行文件
+
+### 快速开始
+
+#### 安装依赖
+
+使用 `uv` (推荐):
+```bash
+uv sync
+```
+
+或使用 `pip`:
 ```bash
 pip install websockets click pyperclip customtkinter pystray pillow
 ```
 
-如需打包为可执行文件，还需要安装 PyInstaller：
+#### 基本使用
 
-```bash
-pip install pyinstaller
+1. **启动服务器** (在主机上):
+   ```bash
+   uv run python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
+   ```
+
+2. **连接客户端** (在其他设备上):
+   ```bash
+   uv run python -m src.sync_clipboard --mode client --host <服务器IP> --port 8765
+   ```
+
+3. **使用图形界面**:
+   ```bash
+   uv run python -m src.sync_clipboard_gui
+   ```
+
+### 详细使用指南
+
+#### 命令行模式
+
+**服务器模式参数:**
+- `--mode server` - 启动服务器模式
+- `--host 0.0.0.0` - 监听所有网络接口
+- `--port 8765` - 指定端口号
+
+**客户端模式参数:**
+- `--mode client` - 启动客户端模式  
+- `--host <IP>` - 服务器IP地址
+- `--port <端口>` - 服务器端口号
+
+#### 图形界面模式
+
+图形界面提供以下功能：
+
+1. **模式选择** - 服务器或客户端模式
+2. **网络配置** - IP地址和端口设置
+3. **主机名设置** - 自定义设备标识
+4. **自动保存配置** - 记住上次使用的设置
+5. **实时日志** - 查看运行状态和错误信息
+6. **系统托盘** - 最小化到托盘运行
+
+### 架构说明
+
+本项目采用标准的Server-Client架构：
+
+- **SyncServer**: 作为中央枢纽，既参与剪贴板同步，又负责转发其他客户端的剪贴板内容
+- **SyncClient**: 连接到服务器，发送本地剪贴板变化并接收其他设备的剪贴板内容
+- **防回环机制**: 确保剪贴板内容不会回传给发送方，避免无限循环
+
+### 开发者指南
+
+#### 项目结构
+
+```
+src/
+├── cli/           # 命令行接口
+├── client/        # 客户端实现
+├── server/        # 服务器实现
+├── core/          # 核心组件
+├── compat/        # 兼容性层
+└── gui/           # 图形界面
 ```
 
-或者一次性安装所有依赖：
+#### 运行测试
 
 ```bash
-pip install websockets click pyperclip customtkinter pystray pillow pyinstaller
+# 运行所有测试
+uv run python -m pytest tests/ -v
+
+# 运行属性测试
+uv run python -m pytest tests/test_anti_loop_properties.py -v
+
+# 运行集成测试
+uv run python -m pytest tests/test_integration.py -v
 ```
 
-## 使用方法
+#### 贡献代码
 
-### 命令行版本
+1. Fork 本仓库
+2. 创建功能分支: `git checkout -b feature/your-feature`
+3. 提交更改: `git commit -am 'Add some feature'`
+4. 推送分支: `git push origin feature/your-feature`
+5. 创建 Pull Request
 
-#### 启动服务器模式
+#### 代码规范
+
+- 使用 Python 3.13+
+- 遵循 PEP 8 代码风格
+- 为新功能编写测试
+- 更新相关文档
+
+---
+
+## English
+
+A real-time clipboard synchronization tool across different operating systems using WebSocket. Built with a standard Server-Client architecture for stable and reliable cross-device clipboard sharing.
+
+### Features
+
+- 🚀 **Real-time Sync** - Millisecond-level clipboard synchronization via WebSocket
+- 🔄 **Anti-loop Mechanism** - Smart prevention of infinite clipboard sync loops
+- 🖥️ **Cross-platform** - Supports Windows and Linux operating systems
+- 🔌 **Auto Reconnect** - Automatic client reconnection for service stability
+- 🎛️ **Dual Interface** - Both command-line and graphical user interfaces
+- ⚙️ **Flexible Config** - Customizable IP address, port, and hostname
+- 📦 **Portable** - Can be packaged as standalone executables
+
+### Quick Start
+
+#### Install Dependencies
+
+Using `uv` (recommended):
+```bash
+uv sync
+```
+
+Or using `pip`:
+```bash
+pip install websockets click pyperclip customtkinter pystray pillow
+```
+
+#### Basic Usage
+
+1. **Start Server** (on main host):
+   ```bash
+   uv run python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
+   ```
+
+2. **Connect Client** (on other devices):
+   ```bash
+   uv run python -m src.sync_clipboard --mode client --host <SERVER_IP> --port 8765
+   ```
+
+3. **Use GUI**:
+   ```bash
+   uv run python -m src.sync_clipboard_gui
+   ```
+
+### Detailed Usage Guide
+
+#### Command Line Mode
+
+**Server Mode Parameters:**
+- `--mode server` - Start in server mode
+- `--host 0.0.0.0` - Listen on all network interfaces
+- `--port 8765` - Specify port number
+
+**Client Mode Parameters:**
+- `--mode client` - Start in client mode
+- `--host <IP>` - Server IP address
+- `--port <PORT>` - Server port number
+
+#### GUI Mode
+
+The graphical interface provides:
+
+1. **Mode Selection** - Server or client mode
+2. **Network Configuration** - IP address and port settings
+3. **Hostname Setting** - Custom device identifier
+4. **Auto-save Config** - Remember last used settings
+5. **Real-time Logs** - View running status and error messages
+6. **System Tray** - Minimize to tray operation
+
+### Architecture
+
+This project uses a standard Server-Client architecture:
+
+- **SyncServer**: Acts as central hub, participates in clipboard sync and forwards content from other clients
+- **SyncClient**: Connects to server, sends local clipboard changes and receives content from other devices
+- **Anti-loop Mechanism**: Ensures clipboard content doesn't loop back to sender, preventing infinite cycles
+
+### Developer Guide
+
+#### Project Structure
+
+```
+src/
+├── cli/           # Command line interface
+├── client/        # Client implementation
+├── server/        # Server implementation
+├── core/          # Core components
+├── compat/        # Compatibility layer
+└── gui/           # Graphical interface
+```
+
+#### Running Tests
 
 ```bash
-python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
+# Run all tests
+uv run python -m pytest tests/ -v
+
+# Run property tests
+uv run python -m pytest tests/test_anti_loop_properties.py -v
+
+# Run integration tests
+uv run python -m pytest tests/test_integration.py -v
 ```
 
-### 启动客户端模式
+#### Contributing
 
-```bash
-python -m src.sync_clipboard --mode client --host SERVER_IP --port 8765
-```
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -am 'Add some feature'`
+4. Push branch: `git push origin feature/your-feature`
+5. Create Pull Request
 
-### 参数说明
+#### Code Standards
 
-- `--mode` 或 `-m`: 运行模式，可选 `server`（服务器）或 `client`（客户端）
-- `--host` 或 `-h`: 服务器IP地址，默认为 `127.0.0.1`
-- `--port` 或 `-p`: 端口号，默认为 `8765`
+- Use Python 3.13+
+- Follow PEP 8 style guide
+- Write tests for new features
+- Update relevant documentation
 
-### 图形界面版本
+### Building Executables
 
-从 v0.2.0 版本开始，项目提供图形用户界面版本，支持以下功能：
-
-1. **设置运行模式** - 通过单选按钮可以选择服务器(server)、客户端(client)或混合(mix)模式
-2. **修改IP和端口** - 提供了输入框用于修改主机地址和端口号
-3. **修改主机名** - 可以自定义当前设备的主机名
-4. **保存配置** - 应用会自动保存上一次的配置
-5. **控制按钮** - 提供了开始运行、停止运行和完全退出的按钮
-6. **日志窗口** - 实时显示运行日志信息
-7. **系统托盘** - 应用可以最小化到托盘，并通过托盘重新打开主界面或完全退出
-
-启动图形界面版本：
-
-```bash
-python -m src.sync_clipboard_gui
-```
-
-或使用命令：
-
-```bash
-sync-clipboard-gui
-```
-
-## 打包为可执行文件
-
-### 使用PyInstaller
-
-使用PyInstaller将程序打包为可执行文件：
+#### Using PyInstaller
 
 ```bash
 pyinstaller --onefile src/sync_clipboard.py
 pyinstaller --onefile src/sync_clipboard_gui.py
 ```
 
-或者使用项目提供的spec文件：
+Or use the provided spec files:
 
 ```bash
 pyinstaller sync-clipboard.spec
+pyinstaller sync-clipboard-gui.spec
 ```
 
-打包后的可执行文件位于 `dist/` 目录中。
+#### Using Nix
 
-### 使用Nix
-
-如果在NixOS系统上，也可以使用Nix来构建：
+For NixOS systems:
 
 ```bash
 nix build
 ```
 
-构建后的可执行文件可通过 `./result/bin/sync-clipboard` 访问。
+### Automated Releases
 
-## 自动发布
+This project has GitHub Actions configured for automatic releases. When a tag in `vX.Y.Z` format is pushed:
 
-本项目配置了GitHub Actions自动发布功能，当给某个commit打上`vX.Y.Z`格式的tag时，会自动执行以下操作：
+1. Version number is extracted (removing `v` prefix)
+2. Version is updated in `pyproject.toml`
+3. Executables are built for Linux, Windows, and macOS
+4. Packaged files are published to GitHub Release
 
-1. 从tag中提取版本号（去掉`v`前缀）
-2. 将提取的版本号更新到[pyproject.toml](./pyproject.toml)文件中
-3. 使用PyInstaller为Linux、Windows和macOS三个平台打包可执行文件
-4. 将打包好的可执行文件发布到GitHub Release中
-
-### 创建新版本
-
-```bash
-# 为当前commit打上版本tag
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-例如：
+#### Creating New Release
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-## 使用示例
+### License
 
-1. 在一台机器上启动服务器：
-   ```
-   python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
-   ```
+This project is open source. Please check the LICENSE file for details.
 
-2. 在其他机器上连接到该服务器：
-   ```
-   python -m src.sync_clipboard --mode client --host SERVER_IP --port 8765
-   ```
+### Support
 
-当任何一台机器的剪贴板发生变化时，其他机器的剪贴板也会自动同步更新。
+If you encounter any issues or have questions:
+
+1. Check existing [Issues](../../issues)
+2. Create a new issue with detailed description
+3. Provide system information and error logs
