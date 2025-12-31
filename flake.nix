@@ -9,8 +9,7 @@
     nixpkgs.url = "nixpkgs";
   };
 
-  outputs =
-    {self, nixpkgs}:
+  outputs = {self, nixpkgs}:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -22,11 +21,15 @@
       pkgsFor = system: import nixpkgs {inherit system;};
       pyproject = builtins.fromTOML (builtins.readFile ./pyproject.toml);
       version = pyproject.project.version;
+
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+      python = pkgs.python311;
     in
     {
-      packages = forAllSystems (
-        system:
-        let
+      packages = forAllSystems(
+      system:
+              let
           pkgs = pkgsFor system;
           pythonPkgs = pkgs.python3Packages;
           deps = with pythonPkgs; [
@@ -35,55 +38,35 @@
             pyperclip
           ];
         in
-        {
-          default = pkgs.stdenv.mkDerivation {
-            pname = "sync-clipboard";
-            version = "0.1.0";
-            src = ./.;
+         {
+            default = python.pkgs.buildPythonApplication rec {
+        pname = "sync-clipboard";
+        version = "0.1.0";
+        src = ./.;
 
-            nativeBuildInputs = [pkgs.makeWrapper];
-            buildInputs = [pkgs.python3] ++ deps;
+        format = "pyproject";
 
-            installPhase = ''
-              mkdir -p $out/bin
-              cp ./src/sync_clipboard.py $out/bin/.sync_clipboard_wrapped
+        nativeBuildInputs = with python.pkgs; [
+          setuptools
+          wheel
+        ];
 
-              makeWrapper ${pkgs.python3}/bin/python3 $out/bin/sync-clipboard \
-                --add-flags "$out/bin/.sync_clipboard_wrapped" \
-                --set APP_VERSION "${version}" \
-                --prefix PYTHONPATH : "$PYTHONPATH"
-            '';
-          };
-        }
-      );
+        propagatedBuildInputs = with python.pkgs; [
+          click
+          pyperclip
+          websockets
+          customtkinter
+          pystray
+        ];
 
-      # nix develop
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          default = pkgs.mkShell {
-            buildInputs = [
-              (pkgs.python3.withPackages (
-                ps: with ps; [
-                  websockets
-                  click
-                  pyperclip
-                ]
-              ))
-            ];
-          };
-        }
-      );
-
-      # nix run
-      apps = forAllSystems (system: {
-        default = {
-          type = "app";
-          program = "${self.packages.${system}.default}/bin/sync-clipboard";
+            meta.mainProgram = "sync-clipboard";   # 让 nix run 知道主命令
+            };
         };
-      });
+      );
+
+      apps.${system}.default = {
+        type = "app";
+        program = "${sync-clipboard}/bin/sync-clipboard";
+      };
     };
 }

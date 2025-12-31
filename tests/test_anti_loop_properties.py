@@ -148,13 +148,13 @@ class TestAntiLoopProperties:
                 # Simulate clipboard monitoring check immediately after update
                 # This should not trigger callback because is_syncing should be False by now
                 # but the content should be updated
-                assert monitor.current_content == new_content
+                assert monitor.cached_content == new_content
                 
                 # Verify that multiple sync operations don't cause loops
                 for i in range(sync_operations):
                     test_content = f"{new_content}_iteration_{i}"
                     await monitor.update_clipboard(test_content)
-                    assert monitor.current_content == test_content
+                    assert monitor.cached_content == test_content
                 
                 # The callback should not have been called during sync operations
                 # because they were initiated by update_clipboard (sync operations)
@@ -195,11 +195,10 @@ class TestAntiLoopProperties:
                     # Simulate the monitoring check (like the actual implementation)
                     if not monitor.is_syncing:
                         current_clipboard = str(mock_paste())
-                        if (current_clipboard != monitor.current_content and 
+                        if (current_clipboard != monitor.cached_content and
                             current_clipboard.strip() and
                             monitor._is_content_changed(current_clipboard)):
-                            
-                            monitor.current_content = current_clipboard
+                            monitor.cached_content = current_clipboard
                             await monitor.callback(current_clipboard)
                             last_callback_content = current_clipboard
                 
