@@ -45,7 +45,7 @@ class SyncServer:
             self.running = False
             if self.server:
                 self.server.close()
-                await self.server.wait_closed()
+                # await self.server.wait_closed()
         except OSError as e:
             self.logger.error(f"网络错误，无法启动服务器: {e}", exc_info=True)
             raise ClipboardConnectionError(
@@ -112,7 +112,10 @@ class SyncServer:
         if content.strip():
             self.logger.info(
                 f"收到 {sender} 的新剪贴板内容: {content[:50]}{'...' if len(content) > 50 else ''}")
-            
+
+            # 更新本机剪贴板内容
+            await self.clipboard_monitor.update_clipboard(content)
+
             # 广播给其他客户端（排除发送方）
             # 传递sender_websocket以便正确识别消息来源
             await self.broadcast_clipboard_update(content, sender_websocket)
@@ -121,7 +124,7 @@ class SyncServer:
         """本地剪贴板变化回调"""
         self.logger.info(
             f"检测到本地剪贴板更新: {content[:50]}{'...' if len(content) > 50 else ''}")
-        
+
         # 广播给所有客户端
         await self.broadcast_clipboard_update(content)
     
