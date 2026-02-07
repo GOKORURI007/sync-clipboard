@@ -62,6 +62,17 @@ class SyncClipboardGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
 
+        # 设置窗口图标
+        try:
+            icon_path = self._get_icon_path()
+            if icon_path.exists():
+                icon_image = Image.open(icon_path)
+                icon_photo = ctk.CTkImage(icon_image, size=(32, 32))
+                self.root.iconbitmap(icon_photo)
+                self.logger.info(f'成功加载窗口图标: {icon_path}')
+        except Exception as e:
+            self.logger.warning(f'加载窗口图标失败: {e}')
+
         # 读取配置
         self.config = self.load_config()
 
@@ -205,12 +216,34 @@ class SyncClipboardGUI:
         self.log_text = ctk.CTkTextbox(log_frame, height=200)
         self.log_text.pack(pady=5, padx=10, fill='both', expand=True)
 
+    def _get_icon_path(self) -> Path:
+        """获取图标文件路径（支持开发和打包环境）"""
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller 打包环境
+            return Path(sys._MEIPASS) / 'assets' / 'sync-clipboard-256.png'
+        else:
+            # 开发环境
+            return Path(__file__).parent.parent / 'assets' / 'sync-clipboard-256.png'
+
     def create_tray_icon(self):
         """创建系统托盘图标"""
-        # 创建一个简单的图标
-        image = Image.new('RGB', (64, 64), color=(73, 109, 137))
-        dc = ImageDraw.Draw(image)
-        dc.ellipse((10, 10, 54, 54), fill=(255, 255, 255))
+        try:
+            # 加载图标文件
+            icon_path = self._get_icon_path()
+            if icon_path.exists():
+                image = Image.open(icon_path)
+                self.logger.info(f'成功加载托盘图标: {icon_path}')
+            else:
+                # 如果图标文件不存在，使用默认图标
+                self.logger.warning(f'图标文件不存在: {icon_path}，使用默认图标')
+                image = Image.new('RGB', (64, 64), color=(73, 109, 137))
+                dc = ImageDraw.Draw(image)
+                dc.ellipse((10, 10, 54, 54), fill=(255, 255, 255))
+        except Exception as e:
+            self.logger.error(f'加载图标失败: {e}，使用默认图标')
+            image = Image.new('RGB', (64, 64), color=(73, 109, 137))
+            dc = ImageDraw.Draw(image)
+            dc.ellipse((10, 10, 54, 54), fill=(255, 255, 255))
 
         # 创建托盘菜单
         menu = (

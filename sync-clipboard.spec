@@ -4,7 +4,10 @@ a = Analysis(
     ['src/sync_clipboard_cli.py'],  # 入口脚本
     pathex=[],  # 额外模块搜索路径
     binaries=[],
-    datas=[('pyproject.toml', '.')],  # 把包内数据文件打进去
+    datas=[
+        ('pyproject.toml', '.'),  # 把包内数据文件打进去
+        ('assets/sync-clipboard-256.png', 'assets'),  # 图标文件
+    ],
     hiddenimports=[],  # 无隐式 import 可留空
     hookspath=[],
     runtime_hooks=[],
@@ -28,4 +31,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='assets/sync-clipboard-256.png',  # 应用程序图标
 )
