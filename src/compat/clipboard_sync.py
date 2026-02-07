@@ -4,11 +4,12 @@
 Compatibility wrapper for sync-clipboard
 Maintains backward compatibility with existing code
 """
+
 import asyncio
 import platform
 
-from ..server.sync_server import SyncServer
 from ..client.sync_client import SyncClient
+from ..server.sync_server import SyncServer
 
 
 class ClipboardSync:
@@ -16,11 +17,11 @@ class ClipboardSync:
 
     def __init__(
         self,
-        host: str = "127.0.0.1",
+        host: str = '127.0.0.1',
         port: int = 8765,
-        mode: str = "client",
-        hostname: str = "",
-        log_callback=print
+        mode: str = 'client',
+        hostname: str = '',
+        log_callback=print,
     ):
         self.loop: asyncio.AbstractEventLoop | None = None
         self.hostname = hostname or platform.node()
@@ -29,13 +30,13 @@ class ClipboardSync:
         self.mode = mode
         self.running = False
         self.log_callback = log_callback
-        
+
         # 验证模式
-        if mode not in ["server", "client"]:
+        if mode not in ['server', 'client']:
             raise ValueError(f"不支持的模式: {mode}。只支持 'server' 或 'client'")
-        
+
         # 创建对应的实例
-        if mode == "server":
+        if mode == 'server':
             self.instance = SyncServer(host, port, self.hostname, log_callback)
         else:  # client
             self.instance = SyncClient(host, port, self.hostname, log_callback=log_callback)
@@ -65,9 +66,9 @@ class ClipboardSync:
 
         try:
             # 运行直到 loop.stop() 被调用
-            if self.mode == "server":
+            if self.mode == 'server':
                 self.loop.run_until_complete(self.instance.start())
-            elif self.mode == "client":
+            elif self.mode == 'client':
                 self.loop.run_until_complete(self.instance.start())
         except (KeyboardInterrupt, asyncio.CancelledError):
             raise
@@ -75,7 +76,7 @@ class ClipboardSync:
             # 关键：在这里进行最后的收尾工作，此时 loop 已经处于 "stopped" 状态但未 "closed"
             self._cleanup_tasks_sync()
             self.loop.close()
-            self.log_callback("服务已彻底停止。")
+            self.log_callback('服务已彻底停止。')
 
     def _cleanup_tasks_sync(self):
         """同步包装异步清理"""
@@ -88,5 +89,4 @@ class ClipboardSync:
             for task in pending:
                 task.cancel()
             # 再次利用 run_until_complete 来消化掉取消信号和 websockets 的隐藏任务
-            self.loop.run_until_complete(
-                asyncio.gather(*pending, return_exceptions=True))
+            self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
