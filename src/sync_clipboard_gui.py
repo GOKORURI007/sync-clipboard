@@ -63,12 +63,14 @@ class SyncClipboardGUI:
         self.root.geometry(f'{width}x{height}+{x}+{y}')
 
         # 设置窗口图标
+        self.icon_photo = None
         try:
+            import tkinter as tk
+
             icon_path = self._get_icon_path()
             if icon_path.exists():
-                icon_image = Image.open(icon_path)
-                icon_photo = ctk.CTkImage(icon_image, size=(32, 32))
-                self.root.iconbitmap(icon_photo)
+                self.icon_photo = tk.PhotoImage(file=str(icon_path))
+                self.root.wm_iconphoto(False, self.icon_photo)
                 self.logger.info(f'成功加载窗口图标: {icon_path}')
         except Exception as e:
             self.logger.warning(f'加载窗口图标失败: {e}')
@@ -86,6 +88,7 @@ class SyncClipboardGUI:
 
         # 创建界面
         self.create_widgets()
+        self.log_message(f'当前配置路径: {self.config_path}')
 
         # 初始化自动保存定时器
         self.auto_save_timer = None
@@ -531,7 +534,7 @@ class SyncClipboardGUI:
 
     def log_message(self, message: str):
         """在日志区域添加消息"""
-        formatted_message = f'[{ctk.get_appearance_mode()}] {message}\n'
+        formatted_message = f'{message}\n'
         self.log_text.insert('end', formatted_message)
         self.log_text.see('end')  # 滚动到最新消息
         self.root.update_idletasks()  # 立即更新界面
