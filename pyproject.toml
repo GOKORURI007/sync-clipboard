@@ -42,6 +42,9 @@ find = { }   # 自动发现根目录下的包
 sync-clipboard = "src.sync_clipboard_cli:main"      # CLI
 sync-clipboard-gui = "src.sync_clipboard_gui:main"  # GUI
 
+[tool.uv]
+package = false
+
 [tool.ruff]
 preview = true
 fix-only = true

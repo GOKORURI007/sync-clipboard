@@ -32,7 +32,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync
 
       - name: Build with PyInstaller
         # 建议在 spec 文件里保持输出文件名统一，然后在这里重命名

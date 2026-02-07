@@ -565,7 +565,7 @@ wheels = [
 [[package]]
 name = "sync-clipboard"
 version = "0.3.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "click" },
     { name = "customtkinter" },
