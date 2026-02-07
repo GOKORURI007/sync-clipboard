@@ -437,16 +437,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pytest-dependency"
-version = "0.6.0"
-source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/" }
-dependencies = [
-    { name = "pytest" },
-    { name = "setuptools" },
-]
-sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/7e/3b/317cc04e77d707d338540ca67b619df8f247f3f4c9f40e67bf5ea503ad94/pytest-dependency-0.6.0.tar.gz", hash = "sha256:934b0e6a39d95995062c193f7eaeed8a8ffa06ff1bcef4b62b0dc74a708bacc1", size = 19499, upload-time = "2023-12-31T20:38:54.991Z" }
-
-[[package]]
 name = "pytest-sugar"
 version = "1.1.1"
 source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/" }
@@ -583,7 +573,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
-    { name = "pytest-dependency" },
     { name = "pytest-sugar" },
     { name = "questionary" },
     { name = "ruff" },
@@ -609,7 +598,6 @@ dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "pytest-dependency", specifier = ">=0.6.0" },
     { name = "pytest-sugar", specifier = ">=1.1.1" },
     { name = "questionary", specifier = ">=2.1.1" },
     { name = "ruff", specifier = ">=0.14.14" },
