@@ -13,3 +13,7 @@ test:
 
 release:
     uv run {{scripts_dir}}/release.py
+
+pyinstall:
+    uv run pyinstaller .\sync-clipboard.spec
+    uv run pyinstaller .\sync-clipboard-gui.spec

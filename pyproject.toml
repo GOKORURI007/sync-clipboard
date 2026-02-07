@@ -13,21 +13,29 @@ dependencies = [
     "platformdirs>=4.5.1",
 ]
 
+[dependency-groups]
+dev = [
+    "hypothesis>=6.0",
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.15.0",
+    "gitpython>=3.1.46",
+    "pytest-cov>=7.0.0",
+    "pytest-dependency>=0.6.0",
+    "pytest-sugar>=1.1.1",
+    "pytest>=9.0.2",
+    "questionary>=2.1.1",
+    "ruff>=0.14.14",
+    "semver>=3.0.4",
+    "pyinstaller>=6.18.0",
+]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages]
 find = { }   # 自动发现根目录下的包
-
-[dependency-groups]
-dev = [
-    "pyinstaller>=6.17.0",
-    "hypothesis>=6.0",
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
-    "ruff>=0.15.0",
-]
 
 [project.scripts]
 # 左边 = 用户敲的命令；右边 = 包. 模块: 函数 / 对象

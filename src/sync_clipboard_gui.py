@@ -13,6 +13,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
+import click
 import customtkinter as ctk
 import pystray
 from PIL import Image, ImageDraw
@@ -574,8 +575,28 @@ class SyncClipboardGUI:
         self.root.mainloop()
 
 
-def main():
-    app = SyncClipboardGUI()
+@click.command()
+@click.option(
+    '--config',
+    '-c',
+    type=click.Path(exists=False, dir_okay=False, path_type=Path),
+    help='指定配置文件的路径',
+)
+@click.version_option(
+    __version__, '--version', '-v', message='SyncClipboard GUI %(version)s - 跨设备剪贴板同步工具'
+)
+def main(config):
+    """
+    SyncClipboard GUI - 跨设备剪贴板同步工具的图形界面
+
+    提供直观的图形界面来管理剪贴板同步服务，支持服务端和客户端模式。
+
+    \b
+    示例:
+      使用默认配置: sync-clipboard-gui
+      指定配置文件: sync-clipboard-gui --config "D:\\config\\my_config.json"
+    """
+    app = SyncClipboardGUI(config_path=config)
     app.run()
 
 
