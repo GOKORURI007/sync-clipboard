@@ -11,10 +11,12 @@ import platform
 import sys
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 
 import customtkinter as ctk
 import pystray
 from PIL import Image, ImageDraw
+from platformdirs import user_config_path
 from pystray import MenuItem
 
 from src.core.exceptions import (
@@ -41,7 +43,8 @@ class Config:
 
 
 class SyncClipboardGUI:
-    def __init__(self):
+    def __init__(self, config_path: str | Path | None = None):
+        self.config_path = config_path if config_path else user_config_path() / 'config.json'
         # 设置主题
         ctk.set_appearance_mode('dark')
         ctk.set_default_color_theme('blue')
@@ -225,10 +228,9 @@ class SyncClipboardGUI:
 
     def load_config(self) -> Config:
         """从配置文件加载配置"""
-        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         try:
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as f:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
 
                     # 验证和清理配置数据
@@ -282,10 +284,8 @@ class SyncClipboardGUI:
                 self.logger.warning(f'保存默认配置失败: {save_error}')
             return default_config
 
-    @staticmethod
-    def _save_config_to_file_silent(config: Config) -> bool:
+    def _save_config_to_file_silent(self, config: Config) -> bool:
         """静默保存配置到文件（不输出日志）"""
-        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         try:
             config_data = {
                 'mode': config.mode,
@@ -295,11 +295,13 @@ class SyncClipboardGUI:
                 'minimize_on_close': config.minimize_on_close,
             }
 
-            with open(config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=2, ensure_ascii=False)
 
             return True
-        except Exception:
+        except Exception as e:
+            self.log_message(str(e))
+            self.logger.error(str(e))
             return False
 
     def save_config(self):
@@ -362,7 +364,6 @@ class SyncClipboardGUI:
 
     def _save_config_to_file(self, config: Config) -> bool:
         """内部方法：保存配置到文件"""
-        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         try:
             config_data = {
                 'mode': config.mode,
@@ -372,7 +373,7 @@ class SyncClipboardGUI:
                 'minimize_on_close': config.minimize_on_close,
             }
 
-            with open(config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=2, ensure_ascii=False)
 
             self.log_message('配置已保存')
@@ -404,7 +405,7 @@ class SyncClipboardGUI:
         if self.auto_save_timer:
             self.root.after_cancel(self.auto_save_timer)
 
-        # 设置延迟保存（1秒后）
+        # 设置延迟保存（1 秒后）
         self.auto_save_timer = self.root.after(1000, self.save_config)
 
     def on_start_btn_click(self):

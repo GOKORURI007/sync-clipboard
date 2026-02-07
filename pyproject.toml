@@ -10,6 +10,7 @@ dependencies = [
     "pyperclip>=1.8",
     "customtkinter>=5.2.2",
     "pystray>=0.19.5",
+    "platformdirs>=4.5.1",
 ]
 
 [build-system]
