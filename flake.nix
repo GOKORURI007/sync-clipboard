@@ -18,7 +18,7 @@
       # 把当前目录当 Python 包构建
       sync-clipboard = python.pkgs.buildPythonApplication rec {
         pname = "sync-clipboard";
-        version = "0.3.0";
+        version = "0.3.1";
         src = ./.;
 
         format = "pyproject"; # 使用 pyproject.toml
