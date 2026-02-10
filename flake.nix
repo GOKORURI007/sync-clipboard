@@ -14,7 +14,7 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      python = pkgs.python311;
+      python = pkgs.python313;
       # 把当前目录当 Python 包构建
       sync-clipboard = python.pkgs.buildPythonApplication rec {
         pname = "sync-clipboard";
@@ -34,6 +34,7 @@
           websockets
           customtkinter
           pystray
+          platformdirs
         ];
 
         meta.mainProgram = "sync-clipboard"; # 让 nix run 知道主命令
