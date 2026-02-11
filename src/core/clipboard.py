@@ -28,7 +28,8 @@ class ClipboardMonitor:
             self.clipboard_get = pyperclip.paste
             self.clipboard_set = pyperclip.copy
             self.logger.info(
-                f'Clipboard backend initialized, current platform: {platform.system()}')
+                f'Clipboard backend initialized, current platform: {platform.system()}'
+            )
         except ImportError as e:
             self.logger.error(f'Importing the pyperclip module failed: {e}')
             self.logger.warning('Clipboard functionality is unavailable. Please install pyperclip.')

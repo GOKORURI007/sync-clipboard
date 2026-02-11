@@ -1,299 +1,310 @@
-# SyncClipboard | 剪贴板同步工具
+# Sync Clipboard | Cross-device Clipboard Synchronization Tool
 
-[English](#english) | [中文](#中文)
+![GitHub License](https://img.shields.io/github/license/GOKORURI007/sync-clipboard?link=https%3A%2F%2Fgithub.com%2FGOKORURI007%2Fsync-clipboard%2Fblob%2Fmaster%2FLICENSE)
+![Python Version](https://img.shields.io/badge/python-3.13%2B-blue)
 
----
+[English](./README.md) | [简体中文](./docs/README-zhCN.md)
 
-## 中文
+Sync Clipboard is a cross-platform real-time clipboard synchronization tool based on WebSocket
+technology, featuring a standard Server-Client architecture design. It aims to solve the unstable
+clipboard functionality issues found in keyboard-mouse sharing software
+like [Deskflow](https://github.com/deskflow/deskflow).
 
-通过WebSocket在不同操作系统之间实时同步剪贴板内容的工具。采用标准的Server-Client架构，提供稳定可靠的跨设备剪贴板同步体验。
+## 📋 Feature Support Matrix
 
-### 功能特点
+| Feature Category      | Status        | Description                                                            |
+|-----------------------|---------------|------------------------------------------------------------------------|
+| Text Synchronization  | ✅ Supported   | Supports plain text and rich text content                              |
+| Image Synchronization | ⏳ Not Planned | Depends on [pyperclip](https://github.com/asweigart/pyperclip) support |
+| File Synchronization  | ⏳ Not Planned | Depends on [pyperclip](https://github.com/asweigart/pyperclip) support |
+| Windows               | ✅ Supported   | Full feature support                                                   |
+| Linux/X11             | ✅ Supported   | Through X11 clipboard API                                              |
+| Linux/Wayland         | ✅ Supported   | Through wl-clipboard tool                                              |
+| macOS                 | ⏳ Untested    | Theoretically supported, testing feedback welcome                      |
 
-- 🚀 **实时同步** - 基于WebSocket实现毫秒级剪贴板同步
-- 🔄 **防回环机制** - 智能防止剪贴板内容无限循环同步
-- 🖥️ **跨平台支持** - 支持Windows和Linux操作系统
-- 🔌 **自动重连** - 客户端断线后自动重连，确保服务稳定性
-- 🎛️ **双界面模式** - 提供命令行和图形界面两种使用方式
-- ⚙️ **灵活配置** - 支持自定义IP地址、端口和主机名
-- 📦 **便携部署** - 支持打包为独立可执行文件
+## 🚀 Quick Start
 
-### 快速开始
+### 📦 Installation Methods
 
-#### 安装依赖
+#### 🔧 Distribution Installation (Windows & Linux & MacOS)
 
-使用 `uv` (推荐):
+Download the pre-compiled version for your platform from
+the [GitHub Release](https://github.com/GOKORURI007/sync-clipboard/releases) page.
+
+#### 💻 Scoop Package Manager (Windows Recommended)
+
+```powershell
+# 1. Add custom bucket
+scoop bucket add ruri-scoop "https://github.com/gokoruri007/ruri-scoop"
+
+# 2. Install GUI version (recommended)
+scoop install ruri-scoop/sync-clipboard-gui
+
+# 3. Install CLI version (optional)
+scoop install ruri-scoop/sync-clipboard-cli
+```
+
+#### 🛠️ Build from Source (Windows & Linux & MacOS)
+
 ```bash
+# 1. Clone the project
+git clone https://github.com/GOKORURI007/sync-clipboard.git
+cd sync-clipboard
+
+# 2. Install dependencies (recommended using uv)
 uv sync
+
+# 3. Run module directly
+uv run python -m src.sync_clipboard_cli --mode server --host 0.0.0.0 --port 8765
+# Or start GUI
+uv run python -m src.sync_clipboard_gui
+
+# 4. Package as executable
+uv run pyinstaller sync-clipboard-cli.spec
+uv run pyinstaller sync-clipboard-gui.spec
 ```
 
-或使用 `pip`:
-```bash
-pip install websockets click pyperclip customtkinter pystray pillow
+### 🧊 Nix/Flake (NixOS Recommended)
+
+Add configuration to your `flake.nix`:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    sync-clipboard = {
+      url = "github:GOKORURI007/sync-clipboard";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = {self, nixpkgs, sync-clipboard, ...}:
+  {
+    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        {
+          environment.systemPackages = with nixpkgs.legacyPackages.x86_64-linux; [
+            sync-clipboard.packages.x86_64-linux.default
+            wl-clipboard  # Wayland support
+            xclip         # X11 support
+          ];
+        }
+      ];
+    };
+  };
+}
 ```
 
-#### 基本使用
+Run via systemd service:
 
-1. **启动服务器** (在主机上):
-   ```bash
-   uv run python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
-   ```
+```ini
+[Unit]
+Description = Sync Clipboard Service
+After = graphical-session.target
+PartOf = graphical-session.target
 
-2. **连接客户端** (在其他设备上):
-   ```bash
-   uv run python -m src.sync_clipboard --mode client --host <服务器IP> --port 8765
-   ```
+[Service]
+Type = simple
+Environment = PATH=/run/current-system/sw/bin
+ExecStart = sync-clipboard --mode client --host 192.168.1.100 --port 8765
+Restart = always
+RestartSec = 5
 
-3. **使用图形界面**:
-   ```bash
-   uv run python -m src.sync_clipboard_gui
-   ```
-
-### 详细使用指南
-
-#### 命令行模式
-
-**服务器模式参数:**
-- `--mode server` - 启动服务器模式
-- `--host 0.0.0.0` - 监听所有网络接口
-- `--port 8765` - 指定端口号
-
-**客户端模式参数:**
-- `--mode client` - 启动客户端模式  
-- `--host <IP>` - 服务器IP地址
-- `--port <端口>` - 服务器端口号
-
-#### 图形界面模式
-
-图形界面提供以下功能：
-
-1. **模式选择** - 服务器或客户端模式
-2. **网络配置** - IP地址和端口设置
-3. **主机名设置** - 自定义设备标识
-4. **自动保存配置** - 记住上次使用的设置
-5. **实时日志** - 查看运行状态和错误信息
-6. **系统托盘** - 最小化到托盘运行
-
-### 架构说明
-
-本项目采用标准的Server-Client架构：
-
-- **SyncServer**: 作为中央枢纽，既参与剪贴板同步，又负责转发其他客户端的剪贴板内容
-- **SyncClient**: 连接到服务器，发送本地剪贴板变化并接收其他设备的剪贴板内容
-- **防回环机制**: 确保剪贴板内容不会回传给发送方，避免无限循环
-
-### 开发者指南
-
-#### 项目结构
-
-```
-src/
-├── cli/           # 命令行接口
-├── client/        # 客户端实现
-├── server/        # 服务器实现
-├── core/          # 核心组件
-├── compat/        # 兼容性层
-└── gui/           # 图形界面
+[Install]
+WantedBy = graphical-session.target
 ```
 
-#### 运行测试
+## 🎯 Usage Guide
+
+### 🖥️ Command Line Mode
+
+**Server Startup:**
 
 ```bash
-# 运行所有测试
-uv run python -m pytest tests/ -v
+# Listen on all network interfaces
+sync-clipboard --mode server --host 0.0.0.0 --port 8765
 
-# 运行属性测试
-uv run python -m pytest tests/test_anti_loop_properties.py -v
-
-# 运行集成测试
-uv run python -m pytest tests/test_integration.py -v
+# Listen on localhost only
+sync-clipboard --mode server --host 127.0.0.1 --port 8765
 ```
 
-#### 贡献代码
+**Client Connection:**
 
-1. Fork 本仓库
-2. 创建功能分支: `git checkout -b feature/your-feature`
-3. 提交更改: `git commit -am 'Add some feature'`
-4. 推送分支: `git push origin feature/your-feature`
-5. 创建 Pull Request
-
-#### 代码规范
-
-- 使用 Python 3.13+
-- 遵循 PEP 8 代码风格
-- 为新功能编写测试
-- 更新相关文档
-
----
-
-## English
-
-A real-time clipboard synchronization tool across different operating systems using WebSocket. Built with a standard Server-Client architecture for stable and reliable cross-device clipboard sharing.
-
-### Features
-
-- 🚀 **Real-time Sync** - Millisecond-level clipboard synchronization via WebSocket
-- 🔄 **Anti-loop Mechanism** - Smart prevention of infinite clipboard sync loops
-- 🖥️ **Cross-platform** - Supports Windows and Linux operating systems
-- 🔌 **Auto Reconnect** - Automatic client reconnection for service stability
-- 🎛️ **Dual Interface** - Both command-line and graphical user interfaces
-- ⚙️ **Flexible Config** - Customizable IP address, port, and hostname
-- 📦 **Portable** - Can be packaged as standalone executables
-
-### Quick Start
-
-#### Install Dependencies
-
-Using `uv` (recommended):
 ```bash
+# Connect to remote server
+sync-clipboard --mode client --host 192.168.1.100 --port 8765
+
+# Use custom hostname identifier
+sync-clipboard --mode client --host server.local --port 8765 --hostname my-laptop
+```
+
+**Command Line Commands:**
+
+### 🖱️ Graphical Interface Mode
+
+Launch the GUI:
+
+```bash
+sync-clipboard-gui
+```
+
+### ⚙️ Advanced Configuration
+
+Configuration file location:
+
+- **Windows**: `%APPDATA%/sync-clipboard/config.json`
+- **Linux/macOS**: `~/.config/sync-clipboard/config.json`
+
+Example configuration:
+
+```json
+{
+    "mode": "client",
+    "host": "192.168.1.100",
+    "port": 8765,
+    "hostname": "my-workstation",
+    "minimize_on_close": true
+}
+```
+
+## 🏗️ Technical Architecture
+
+### 📊 System Architecture
+
+```
+┌─────────────────┐    WebSocket    ┌─────────────────┐
+│   SyncServer    │◄───────────────►│   SyncClient    │
+│  (Central Hub)  │                 │   (Terminal Node)│
+└─────────────────┘                 └─────────────────┘
+         │                                   │
+         ▼                                   ▼
+┌─────────────────┐                 ┌─────────────────┐
+│ ClipboardMonitor│                 │ ClipboardMonitor│
+│   (Local Listener)│               │   (Local Listener)│
+└─────────────────┘                 └─────────────────┘
+```
+
+### 📁 Project Structure
+
+```
+sync-clipboard/
+├── src/                             # Source code directory
+│   ├── core/                        # Core modules
+│   │   ├── clipboard.py             # Clipboard operation core
+│   │   ├── protocol.py              # Communication protocol definition
+│   │   ├── config.py                # Configuration management
+│   │   └── exceptions.py            # Exception definitions
+│   ├── server/                      # Server implementation
+│   │   └── sync_server.py           # WebSocket server
+│   ├── client/                      # Client implementation
+│   │   └── sync_client.py           # WebSocket client
+│   ├── compat/                      # Compatibility layer
+│   ├── sync_clipboard_cli.py        # Command line interface
+│   └── sync_clipboard_gui.py        # Graphical interface
+├── tests/                           # Test suite
+│   ├── test_integration.py          # Integration tests
+│   └── test_anti_loop_properties.py # Anti-loop property tests
+├── scripts/                         # Development helper scripts
+│   ├── format.py                    # Code formatting
+│   ├── release.py                   # Version release
+│   └── test_all.py                  # Test runner
+├── assets/                          # Resource files
+├── docs/                            # Documentation
+├── pyproject.toml                   # Project configuration
+└── README.md                        # English documentation
+```
+
+## 👨‍💻 Development Guide
+
+### 🛠️ Development Environment Setup
+
+```bash
+# 1. Clone the project
+git clone https://github.com/GOKORURI007/sync-clipboard.git
+cd sync-clipboard
+
+# 2. Install dependency management tool
+# Recommended using uv (https://github.com/astral-sh/uv)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 3. Initialize development environment
 uv sync
+
+# 4. Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# or
+.venv\Scripts\activate     # Windows
 ```
 
-Or using `pip`:
-```bash
-pip install websockets click pyperclip customtkinter pystray pillow
-```
-
-#### Basic Usage
-
-1. **Start Server** (on main host):
-   ```bash
-   uv run python -m src.sync_clipboard --mode server --host 0.0.0.0 --port 8765
-   ```
-
-2. **Connect Client** (on other devices):
-   ```bash
-   uv run python -m src.sync_clipboard --mode client --host <SERVER_IP> --port 8765
-   ```
-
-3. **Use GUI**:
-   ```bash
-   uv run python -m src.sync_clipboard_gui
-   ```
-
-### Detailed Usage Guide
-
-#### Command Line Mode
-
-**Server Mode Parameters:**
-- `--mode server` - Start in server mode
-- `--host 0.0.0.0` - Listen on all network interfaces
-- `--port 8765` - Specify port number
-
-**Client Mode Parameters:**
-- `--mode client` - Start in client mode
-- `--host <IP>` - Server IP address
-- `--port <PORT>` - Server port number
-
-#### GUI Mode
-
-The graphical interface provides:
-
-1. **Mode Selection** - Server or client mode
-2. **Network Configuration** - IP address and port settings
-3. **Hostname Setting** - Custom device identifier
-4. **Auto-save Config** - Remember last used settings
-5. **Real-time Logs** - View running status and error messages
-6. **System Tray** - Minimize to tray operation
-
-### Architecture
-
-This project uses a standard Server-Client architecture:
-
-- **SyncServer**: Acts as central hub, participates in clipboard sync and forwards content from other clients
-- **SyncClient**: Connects to server, sends local clipboard changes and receives content from other devices
-- **Anti-loop Mechanism**: Ensures clipboard content doesn't loop back to sender, preventing infinite cycles
-
-### Developer Guide
-
-#### Project Structure
-
-```
-src/
-├── cli/           # Command line interface
-├── client/        # Client implementation
-├── server/        # Server implementation
-├── core/          # Core components
-├── compat/        # Compatibility layer
-└── gui/           # Graphical interface
-```
-
-#### Running Tests
+### 🧪 Running Tests
 
 ```bash
-# Run all tests
-uv run python -m pytest tests/ -v
-
-# Run property tests
-uv run python -m pytest tests/test_anti_loop_properties.py -v
-
-# Run integration tests
-uv run python -m pytest tests/test_integration.py -v
+uv run python scripts/test_all.py
 ```
 
-#### Contributing
+### 🎨 Code Quality
+
+```bash
+# Code formatting
+uv run python scripts/format.py
+```
+
+### 🚀 Building Releases
+
+```bash
+# Create new version
+uv run python scripts/release.py
+
+# Package executable
+uv run pyinstaller sync-clipboard-cli.spec
+uv run pyinstaller sync-clipboard-gui.spec
+```
+
+## 🤝 Contribution Guidelines
+
+We welcome contributions of any form!
+
+### 📝 Contribution Process
 
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -am 'Add some feature'`
-4. Push branch: `git push origin feature/your-feature`
-5. Create Pull Request
+3. Format code: `uv run python scripts/format.py`
+4. Commit changes: `git commit -am 'Add some feature'`
+5. Push branch: `git push origin feature/your-feature`
+6. Create Pull Request
 
-#### Code Standards
+### 🎯 Development Standards
 
-- Use Python 3.13+
-- Follow PEP 8 style guide
-- Write tests for new features
-- Update relevant documentation
+- Follow [PEP 8](https://peps.python.org/pep-0008/) coding style
+- Update relevant documentation and comments
+- Use type hints to enhance code readability
+- Maintain clear and descriptive commit messages
 
-### Building Executables
+### 🐛 Reporting Issues
 
-#### Using PyInstaller
+Please report issues in [Issues](https://github.com/GOKORURI007/sync-clipboard/issues), including:
 
-```bash
-pyinstaller --onefile src/sync_clipboard.py
-pyinstaller --onefile src/sync_clipboard_gui.py
-```
+- Operating system and version used
+- Sync Clipboard version
+- Detailed error description and reproduction steps
+- Relevant log output
 
-Or use the provided spec files:
+## 📄 License
 
-```bash
-pyinstaller sync-clipboard.spec
-pyinstaller sync-clipboard-gui.spec
-```
+This project is licensed under the MIT License. See
+the [LICENSE](https://github.com/GOKORURI007/sync-clipboard/blob/master/LICENSE) file for details.
 
-#### Using Nix
+## 🙏 Acknowledgments
 
-For NixOS systems:
+Thanks to the following open-source projects for their support:
 
-```bash
-nix build
-```
+- [websockets](https://github.com/aaugustin/websockets) - WebSocket implementation
+- [pyperclip](https://github.com/asweigart/pyperclip) - Cross-platform clipboard operations
+- [customtkinter](https://github.com/TomSchimansky/CustomTkinter) - Modern GUI framework
+- [pystray](https://github.com/moses-palmer/pystray) - System tray support
 
-### Automated Releases
+## 📞 Contact
 
-This project has GitHub Actions configured for automatic releases. When a tag in `vX.Y.Z` format is pushed:
-
-1. Version number is extracted (removing `v` prefix)
-2. Version is updated in `pyproject.toml`
-3. Executables are built for Linux, Windows, and macOS
-4. Packaged files are published to GitHub Release
-
-#### Creating New Release
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-### License
-
-This project is open source. Please check the LICENSE file for details.
-
-### Support
-
-If you encounter any issues or have questions:
-
-1. Check existing [Issues](../../issues)
-2. Create a new issue with detailed description
-3. Provide system information and error logs
+- Project Homepage: [GitHub Repository](https://github.com/GOKORURI007/sync-clipboard)
+- Issue Tracker: [Issue Tracker](https://github.com/GOKORURI007/sync-clipboard/issues)
