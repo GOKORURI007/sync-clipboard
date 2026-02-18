@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 """
 Sync Clipboard GUI
-使用 CustomTkinter 实现的图形界面，用于管理 sync-clipboard 应用
+Graphical interface implemented with CustomTkinter for managing sync-clipboard application
 """
 
 import json
@@ -46,14 +46,14 @@ class Config:
 class SyncClipboardGUI:
     def __init__(self, config_path: str | Path | None = None):
         self.config_path = config_path if config_path else user_config_path() / 'config.json'
-        # 设置主题
+        # Set theme
         ctk.set_appearance_mode('dark')
         ctk.set_default_color_theme('blue')
 
-        # 初始化日志记录器
+        # Initialize logger
         self.logger = get_logger('gui')
 
-        # 创建主窗口
+        # Create main window
         self.root = ctk.CTk()
         self.root.title(f'Sync Clipboard - v{__version__}')
         width = 600
@@ -62,7 +62,7 @@ class SyncClipboardGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
 
-        # 设置窗口图标
+        # Set window icon
         self.icon_photo = None
         try:
             import tkinter as tk
@@ -71,107 +71,107 @@ class SyncClipboardGUI:
             if icon_path.exists():
                 self.icon_photo = tk.PhotoImage(file=str(icon_path))
                 self.root.wm_iconphoto(False, self.icon_photo)
-                self.logger.info(f'成功加载窗口图标: {icon_path}')
+                self.logger.info(f'Successfully loaded window icon: {icon_path}')
         except Exception as e:
-            self.logger.warning(f'加载窗口图标失败: {e}')
+            self.logger.warning(f'Failed to load window icon: {e}')
 
-        # 读取配置
+        # Load configuration
         self.config = self.load_config()
 
-        # 创建线程
+        # Create threads
         self.sync_thread: threading.Thread | None = None
         self.sync_instance: ClipboardSync | None = None
 
-        # 创建系统托盘图标
+        # Create system tray icon
         self.tray_icon = None
         self.create_tray_icon()
 
-        # 创建界面
+        # Create UI
         self.create_widgets()
-        self.log_message(f'当前配置路径: {self.config_path}')
+        self.log_message(f'Current config path: {self.config_path}')
 
-        # 初始化自动保存定时器
+        # Initialize auto-save timer
         self.auto_save_timer = None
 
-        # 绑定窗口关闭事件
+        # Bind window close event
         self.root.protocol('WM_DELETE_WINDOW', self.on_closing)
 
     def create_widgets(self):
-        """创建界面组件"""
-        # 顶部配置区域
+        """Create UI widgets"""
+        # Top configuration area
         config_frame = ctk.CTkFrame(self.root)
         config_frame.pack(pady=10, padx=20, fill='x')
 
-        # Mode 选择
+        # Mode selection
         mode_frame = ctk.CTkFrame(config_frame)
         mode_frame.pack(pady=5, padx=20, fill='x')
 
-        mode_label = ctk.CTkLabel(mode_frame, text='运行模式:')
+        mode_label = ctk.CTkLabel(mode_frame, text='Run Mode:')
         mode_label.pack(pady=5, anchor='w', padx=10)
 
         self.mode_var = ctk.StringVar(value=self.config.mode)
-        # 添加自动保存回调
+        # Add auto-save callback
         self.mode_var.trace_add('write', self.on_config_change)
 
         mode_server_radio = ctk.CTkRadioButton(
-            mode_frame, text='服务器 (server)', variable=self.mode_var, value='server'
+            mode_frame, text='Server', variable=self.mode_var, value='server'
         )
         mode_client_radio = ctk.CTkRadioButton(
-            mode_frame, text='客户端 (client)', variable=self.mode_var, value='client'
+            mode_frame, text='Client', variable=self.mode_var, value='client'
         )
 
         mode_server_radio.pack(pady=2, anchor='w', padx=30)
         mode_client_radio.pack(pady=2, anchor='w', padx=30)
 
-        # Host 配置
+        # Host configuration
         host_frame = ctk.CTkFrame(config_frame)
         host_frame.pack(pady=5, padx=20, fill='x')
 
-        host_label = ctk.CTkLabel(host_frame, text='主机地址:')
+        host_label = ctk.CTkLabel(host_frame, text='Host Address:')
         host_label.pack(pady=5, anchor='w', padx=10)
 
-        self.host_entry = ctk.CTkEntry(host_frame, placeholder_text='输入主机地址')
+        self.host_entry = ctk.CTkEntry(host_frame, placeholder_text='Enter host address')
         self.host_entry.insert(0, self.config.host)
-        # 添加自动保存回调
+        # Add auto-save callback
         self.host_entry.bind('<FocusOut>', self.on_config_change)
         self.host_entry.bind('<KeyRelease>', self.on_config_change_delayed)
         self.host_entry.pack(pady=5, padx=20, fill='x')
 
-        # Port 配置
+        # Port configuration
         port_frame = ctk.CTkFrame(config_frame)
         port_frame.pack(pady=5, padx=20, fill='x')
 
-        port_label = ctk.CTkLabel(port_frame, text='端口号:')
+        port_label = ctk.CTkLabel(port_frame, text='Port:')
         port_label.pack(pady=5, anchor='w', padx=10)
 
-        self.port_entry = ctk.CTkEntry(port_frame, placeholder_text='输入端口号')
+        self.port_entry = ctk.CTkEntry(port_frame, placeholder_text='Enter port number')
         self.port_entry.insert(0, str(self.config.port))
-        # 添加自动保存回调和验证
+        # Add auto-save callback and validation
         self.port_entry.bind('<FocusOut>', self.on_config_change)
         self.port_entry.bind('<KeyRelease>', self.on_config_change_delayed)
         self.port_entry.pack(pady=5, padx=20, fill='x')
 
-        # Hostname 配置
+        # Hostname configuration
         hostname_frame = ctk.CTkFrame(config_frame)
         hostname_frame.pack(pady=5, padx=20, fill='x')
 
-        hostname_label = ctk.CTkLabel(hostname_frame, text='主机名:')
+        hostname_label = ctk.CTkLabel(hostname_frame, text='Hostname:')
         hostname_label.pack(pady=5, anchor='w', padx=10)
 
-        self.hostname_entry = ctk.CTkEntry(hostname_frame, placeholder_text='输入主机名')
+        self.hostname_entry = ctk.CTkEntry(hostname_frame, placeholder_text='Enter hostname')
         self.hostname_entry.insert(0, self.config.hostname)
-        # 添加自动保存回调
+        # Add auto-save callback
         self.hostname_entry.bind('<FocusOut>', self.on_config_change)
         self.hostname_entry.bind('<KeyRelease>', self.on_config_change_delayed)
         self.hostname_entry.pack(pady=5, padx=20, fill='x')
 
-        # 按钮区域
+        # Button area
         button_frame = ctk.CTkFrame(self.root)
         button_frame.pack(pady=10, padx=20, fill='x')
 
         self.start_button = ctk.CTkButton(
             button_frame,
-            text='开始运行',
+            text='Start',
             command=self.on_start_btn_click,
             fg_color='green',
             hover_color='darkgreen',
@@ -180,7 +180,7 @@ class SyncClipboardGUI:
 
         self.stop_button = ctk.CTkButton(
             button_frame,
-            text='停止运行',
+            text='Stop',
             command=self.on_stop_btn_click,
             fg_color='orange',
             hover_color='darkorange',
@@ -189,110 +189,110 @@ class SyncClipboardGUI:
 
         self.exit_button = ctk.CTkButton(
             button_frame,
-            text='完全退出',
+            text='Exit',
             command=self.exit_app,
             fg_color='red',
             hover_color='darkred',
         )
         self.exit_button.pack(side='left', pady=10, padx=5)
 
-        # 保存配置按钮
+        # Save config button
         save_config_button = ctk.CTkButton(
             button_frame,
-            text='保存配置',
+            text='Save Config',
             command=self.save_config,
             fg_color='gray',
             hover_color='darkgray',
         )
         save_config_button.pack(side='right', pady=10, padx=5)
 
-        # 日志区域
+        # Log area
         log_frame = ctk.CTkFrame(self.root)
         log_frame.pack(pady=10, padx=20, fill='both', expand=True)
 
         log_label = ctk.CTkLabel(
-            log_frame, text='运行日志:', font=ctk.CTkFont(size=14, weight='bold')
+            log_frame, text='Runtime Logs:', font=ctk.CTkFont(size=14, weight='bold')
         )
         log_label.pack(pady=5, anchor='w', padx=10)
 
-        # 创建文本框和滚动条
+        # Create text box and scrollbar
         self.log_text = ctk.CTkTextbox(log_frame, height=200)
         self.log_text.pack(pady=5, padx=10, fill='both', expand=True)
 
     def _get_icon_path(self) -> Path:
-        """获取图标文件路径（支持开发和打包环境）"""
+        """Get icon file path (supports both development and packaged environments)"""
         if hasattr(sys, '_MEIPASS'):
-            # PyInstaller 打包环境
+            # PyInstaller packaged environment
             return Path(sys._MEIPASS) / 'assets' / 'sync-clipboard-256.png'
         else:
-            # 开发环境
+            # Development environment
             return Path(__file__).parent.parent / 'assets' / 'sync-clipboard-256.png'
 
     def create_tray_icon(self):
-        """创建系统托盘图标"""
+        """Create system tray icon"""
         try:
-            # 加载图标文件
+            # Load icon file
             icon_path = self._get_icon_path()
             if icon_path.exists():
                 image = Image.open(icon_path)
-                self.logger.info(f'成功加载托盘图标: {icon_path}')
+                self.logger.info(f'Successfully loaded tray icon: {icon_path}')
             else:
-                # 如果图标文件不存在，使用默认图标
-                self.logger.warning(f'图标文件不存在: {icon_path}，使用默认图标')
+                # If icon file doesn't exist, use default icon
+                self.logger.warning(f'Icon file not found: {icon_path}, using default icon')
                 image = Image.new('RGB', (64, 64), color=(73, 109, 137))
                 dc = ImageDraw.Draw(image)
                 dc.ellipse((10, 10, 54, 54), fill=(255, 255, 255))
         except Exception as e:
-            self.logger.error(f'加载图标失败: {e}，使用默认图标')
+            self.logger.error(f'Failed to load icon: {e}, using default icon')
             image = Image.new('RGB', (64, 64), color=(73, 109, 137))
             dc = ImageDraw.Draw(image)
             dc.ellipse((10, 10, 54, 54), fill=(255, 255, 255))
 
-        # 创建托盘菜单
+        # Create tray menu
         menu = (
-            MenuItem('打开主界面', self.show_window, default=True),
-            MenuItem('退出程序', self.exit_app),
+            MenuItem('Show Window', self.show_window, default=True),
+            MenuItem('Exit', self.exit_app),
         )
 
-        # 创建托盘图标
+        # Create tray icon
         self.tray_icon = pystray.Icon(
             'sync_clipboard', image, 'Sync Clipboard', menu, action=self.show_window
         )
 
-        # 在单独的线程中运行托盘图标
+        # Run tray icon in separate thread
         tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
         tray_thread.start()
 
     def load_config(self) -> Config:
-        """从配置文件加载配置"""
+        """Load configuration from file"""
         try:
             if os.path.exists(self.config_path):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
 
-                    # 验证和清理配置数据
+                    # Validate and clean configuration data
                     mode = config_data.get('mode', 'client')
                     if mode not in ['server', 'client']:
-                        print(f"无效的模式 '{mode}'，使用默认值 'client'")
+                        print(f"Invalid mode '{mode}', using default value 'client'")
                         mode = 'client'
 
-                    # 验证端口号
+                    # Validate port number
                     port = config_data.get('port', 8765)
                     try:
                         port = int(port)
                         if not (1 <= port <= 65535):
-                            print(f'无效的端口号 {port}，使用默认值 8765')
+                            print(f'Invalid port number {port}, using default value 8765')
                             port = 8765
                     except (ValueError, TypeError):
-                        print('无效的端口号格式，使用默认值 8765')
+                        print('Invalid port number format, using default value 8765')
                         port = 8765
 
-                    # 验证主机地址
+                    # Validate host address
                     host = config_data.get('host', '127.0.0.1')
                     if not host or not isinstance(host, str):
                         host = '127.0.0.1'
 
-                    # 验证主机名
+                    # Validate hostname
                     hostname = config_data.get('hostname', platform.node())
                     if not hostname or not isinstance(hostname, str):
                         hostname = platform.node()
@@ -305,24 +305,24 @@ class SyncClipboardGUI:
                         minimize_on_close=config_data.get('minimize_on_close', False),
                     )
             else:
-                # 如果配置文件不存在，返回默认配置并创建文件
+                # If config file doesn't exist, return default config and create file
                 default_config = Config()
-                print('配置文件不存在，使用默认配置')
-                # 自动保存默认配置
+                print('Config file not found, using default configuration')
+                # Auto-save default configuration
                 self._save_config_to_file_silent(default_config)
                 return default_config
         except Exception as e:
-            self.logger.error(f'加载配置失败: {e}，使用默认配置')
+            self.logger.error(f'Failed to load configuration: {e}, using default configuration')
             default_config = Config()
-            # 尝试保存默认配置
+            # Try to save default configuration
             try:
                 self._save_config_to_file_silent(default_config)
             except Exception as save_error:
-                self.logger.warning(f'保存默认配置失败: {save_error}')
+                self.logger.warning(f'Failed to save default configuration: {save_error}')
             return default_config
 
     def _save_config_to_file_silent(self, config: Config) -> bool:
-        """静默保存配置到文件（不输出日志）"""
+        """Silently save configuration to file (no logging output)"""
         try:
             config_data = {
                 'mode': config.mode,
@@ -342,19 +342,19 @@ class SyncClipboardGUI:
             return False
 
     def save_config(self):
-        """保存配置到文件"""
+        """Save configuration to file"""
         try:
-            # 验证输入
+            # Validate input
             mode = self.mode_var.get()
             if mode not in ['server', 'client']:
-                error_msg = f'无效的模式: {mode}'
+                error_msg = f'Invalid mode: {mode}'
                 self.log_message(error_msg)
                 self.logger.error(error_msg)
                 return False
 
             host = self.host_entry.get().strip()
             if not host:
-                error_msg = '主机地址不能为空'
+                error_msg = 'Host address cannot be empty'
                 self.log_message(error_msg)
                 self.logger.error(error_msg)
                 return False
@@ -362,12 +362,12 @@ class SyncClipboardGUI:
             try:
                 port = int(self.port_entry.get())
                 if not (1 <= port <= 65535):
-                    error_msg = '端口号必须在 1-65535 范围内'
+                    error_msg = 'Port must be between 1-65535'
                     self.log_message(error_msg)
                     self.logger.error(error_msg)
                     return False
             except ValueError:
-                error_msg = '端口号必须是数字'
+                error_msg = 'Port must be a number'
                 self.log_message(error_msg)
                 self.logger.error(error_msg)
                 return False
@@ -377,30 +377,30 @@ class SyncClipboardGUI:
                 hostname = platform.node()
                 self.hostname_entry.delete(0, 'end')
                 self.hostname_entry.insert(0, hostname)
-                self.logger.info(f'使用默认主机名: {hostname}')
+                self.logger.info(f'Using default hostname: {hostname}')
 
-            # 更新配置对象
+            # Update configuration object
             self.config.mode = mode
             self.config.host = host
             self.config.port = port
             self.config.hostname = hostname
 
-            # 保存到文件
+            # Save to file
             return self._save_config_to_file(self.config)
 
         except ConfigurationError as e:
-            error_msg = f'配置错误: {e}'
+            error_msg = f'Configuration error: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg)
             return False
         except Exception as e:
-            error_msg = f'保存配置时发生未知错误: {e}'
+            error_msg = f'Unknown error while saving configuration: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg, exc_info=True)
             return False
 
     def _save_config_to_file(self, config: Config) -> bool:
-        """内部方法：保存配置到文件"""
+        """Internal method: save configuration to file"""
         try:
             config_data = {
                 'mode': config.mode,
@@ -413,50 +413,50 @@ class SyncClipboardGUI:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=2, ensure_ascii=False)
 
-            self.log_message('配置已保存')
-            self.logger.info('配置已成功保存到文件')
+            self.log_message('Configuration saved')
+            self.logger.info('Configuration successfully saved to file')
             return True
         except OSError as e:
-            error_msg = f'文件操作失败: {e}'
+            error_msg = f'File operation failed: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg)
             return False
         except Exception as e:
-            error_msg = f'保存配置失败: {e}'
+            error_msg = f'Failed to save configuration: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg, exc_info=True)
             return False
 
     def on_config_change(self, *args):
-        """配置变更时的回调（立即触发）"""
-        # 取消之前的定时器
+        """Callback when configuration changes (triggered immediately)"""
+        # Cancel previous timer
         if self.auto_save_timer:
             self.root.after_cancel(self.auto_save_timer)
 
-        # 立即保存配置
+        # Save configuration immediately
         self.save_config()
 
     def on_config_change_delayed(self, *args):
-        """配置变更时的延迟回调（用于键盘输入）"""
-        # 取消之前的定时器
+        """Delayed callback when configuration changes (for keyboard input)"""
+        # Cancel previous timer
         if self.auto_save_timer:
             self.root.after_cancel(self.auto_save_timer)
 
-        # 设置延迟保存（1 秒后）
+        # Set delayed save (after 1 second)
         self.auto_save_timer = self.root.after(1000, self.save_config)
 
     def on_start_btn_click(self):
-        """开始同步"""
+        """Start synchronization"""
         try:
-            # 保存并验证配置
+            # Save and validate configuration
             if not self.save_config():
-                return  # 配置验证失败，不启动
+                return  # Configuration validation failed, do not start
 
-            # 如果已经在运行，则先停止
+            # If already running, stop first
             if self.sync_instance and self.sync_instance.running:
                 self.on_stop_btn_click()
 
-            # 创建新的同步实例
+            # Create new synchronization instance
             self.sync_instance = ClipboardSync(
                 host=self.config.host,
                 port=self.config.port,
@@ -465,149 +465,149 @@ class SyncClipboardGUI:
                 log_callback=self.log_message,
             )
 
-            # 在新线程中启动同步
+            # Start synchronization in new thread
             def run_sync():
                 try:
                     self.sync_instance.start_sync()
                 except ClipboardConnectionError as e:
-                    self.log_message(f'连接错误: {e}')
-                    self.logger.error(f'连接错误: {e}')
+                    self.log_message(f'Connection error: {e}')
+                    self.logger.error(f'Connection error: {e}')
                 except ClipboardAccessError as e:
-                    self.log_message(f'剪贴板访问错误: {e}')
-                    self.logger.warning(f'剪贴板访问错误: {e}')
+                    self.log_message(f'Clipboard access error: {e}')
+                    self.logger.warning(f'Clipboard access error: {e}')
                 except SyncClipboardError as e:
-                    self.log_message(f'同步错误: {e}')
-                    self.logger.error(f'同步错误: {e}')
+                    self.log_message(f'Synchronization error: {e}')
+                    self.logger.error(f'Synchronization error: {e}')
                 except Exception as e:
-                    self.log_message(f'同步服务发生未知错误: {e}')
-                    self.logger.error(f'同步服务发生未知错误: {e}', exc_info=True)
+                    self.log_message(f'Unknown error in sync service: {e}')
+                    self.logger.error(f'Unknown error in sync service: {e}', exc_info=True)
 
             self.sync_thread = threading.Thread(target=run_sync, daemon=True)
             self.sync_thread.start()
 
             self.log_message(
-                f'已启动同步服务，模式: {self.config.mode}, 地址: {self.config.host}:{self.config.port}'
+                f'Sync service started, mode: {self.config.mode}, address: {self.config.host}:{self.config.port}'
             )
             self.logger.info(
-                f'同步服务已启动: {self.config.mode} 模式，{self.config.host}:{self.config.port}'
+                f'Sync service started: {self.config.mode} mode, {self.config.host}:{self.config.port}'
             )
 
         except Exception as e:
-            error_msg = f'启动同步服务失败: {e}'
+            error_msg = f'Failed to start sync service: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg, exc_info=True)
 
     def on_stop_btn_click(self):
-        """停止同步"""
+        """Stop synchronization"""
         try:
             if self.sync_instance:
                 self.sync_instance.stop_sync()
-                self.log_message('同步服务已停止')
-                self.logger.info('同步服务已停止')
+                self.log_message('Sync service stopped')
+                self.logger.info('Sync service stopped')
             else:
-                self.log_message('没有运行中的同步服务')
-                self.logger.warning('尝试停止同步服务，但没有运行中的服务')
+                self.log_message('No running sync service')
+                self.logger.warning('Attempted to stop sync service, but none is running')
         except Exception as e:
-            error_msg = f'停止同步服务时发生错误: {e}'
+            error_msg = f'Error occurred while stopping sync service: {e}'
             self.log_message(error_msg)
             self.logger.error(error_msg, exc_info=True)
 
     def exit_app(self):
-        """退出应用程序"""
+        """Exit application"""
         try:
-            # 保存最终配置
+            # Save final configuration
             self.save_config()
 
             if self.sync_instance:
                 self.sync_instance.stop_sync()
-                self.logger.info('同步服务已停止，准备退出应用')
+                self.logger.info('Sync service stopped, preparing to exit application')
 
             self.tray_icon.stop()
             self.root.quit()
             self.root.destroy()
-            self.logger.info('应用程序已退出')
+            self.logger.info('Application exited')
             sys.exit()
         except Exception as e:
-            self.logger.error(f'退出应用程序时发生错误: {e}', exc_info=True)
-            # 强制退出
+            self.logger.error(f'Error occurred while exiting application: {e}', exc_info=True)
+            # Force exit
             sys.exit(1)
 
     def log_message(self, message: str):
-        """在日志区域添加消息"""
+        """Add message to log area"""
         formatted_message = f'{message}\n'
         self.log_text.insert('end', formatted_message)
-        self.log_text.see('end')  # 滚动到最新消息
-        self.root.update_idletasks()  # 立即更新界面
+        self.log_text.see('end')  # Scroll to latest message
+        self.root.update_idletasks()  # Update UI immediately
 
     def minimize_to_tray(self):
-        """最小化到托盘"""
-        self.root.withdraw()  # 隐藏主窗口
+        """Minimize to system tray"""
+        self.root.withdraw()  # Hide main window
 
     def show_window(self, icon, item):
-        """显示主窗口"""
-        self.root.deiconify()  # 显示主窗口
-        self.root.lift()  # 将窗口置于最前
-        self.root.focus_force()  # 强制获得焦点
+        """Show main window"""
+        self.root.deiconify()  # Show main window
+        self.root.lift()  # Bring window to front
+        self.root.focus_force()  # Force focus
 
     def on_closing(self):
-        """窗口关闭事件处理"""
-        # 如果用户设置了不再询问，则直接最小化到托盘
+        """Window close event handler"""
+        # If user set to not ask again, directly minimize to tray
         if self.config.minimize_on_close:
             self.minimize_to_tray()
             return
 
-        # 创建一个带"不再显示"选项的自定义对话框
+        # Create custom dialog with "don't show again" option
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title('退出确认')
+        dialog.title('Exit Confirmation')
         dialog.geometry('350x150')
         dialog.resizable(False, False)
 
-        # 居中显示对话框
+        # Center dialog
         dialog.transient(self.root)
         dialog.grab_set()
 
-        # 设置对话框内容
+        # Set dialog content
         label = ctk.CTkLabel(
-            dialog, text="是否要最小化到托盘而不是退出程序？\n选择'否'将完全退出程序"
+            dialog, text="Do you want to minimize to tray instead of exiting?\nSelect 'No' to completely exit"
         )
         label.pack(pady=15)
 
-        # 添加"不再显示"复选框
+        # Add "don't show again" checkbox
         dont_show_var = ctk.BooleanVar(value=False)
-        checkbox = ctk.CTkCheckBox(dialog, text='不再显示此提示', variable=dont_show_var)
+        checkbox = ctk.CTkCheckBox(dialog, text='Do not show this again', variable=dont_show_var)
         checkbox.pack(pady=5)
 
-        # 按钮框架
+        # Button frame
         button_frame = ctk.CTkFrame(dialog)
         button_frame.pack(pady=10)
 
         def on_yes():
-            # 保存"不再显示"的设置
+            # Save "don't show again" setting
             self.config.minimize_on_close = dont_show_var.get()
             self.save_config()
             self.minimize_to_tray()
             dialog.destroy()
 
         def on_no():
-            # 保存"不再显示"的设置
+            # Save "don't show again" setting
             self.config.minimize_on_close = dont_show_var.get()
             self.save_config()
             self.exit_app()
             dialog.destroy()
 
-        # 按钮
+        # Buttons
         yes_button = ctk.CTkButton(
-            button_frame, text='是', command=on_yes, fg_color='green', hover_color='darkgreen'
+            button_frame, text='Yes', command=on_yes, fg_color='green', hover_color='darkgreen'
         )
         yes_button.pack(side='left', padx=5)
 
         no_button = ctk.CTkButton(
-            button_frame, text='否', command=on_no, fg_color='red', hover_color='darkred'
+            button_frame, text='No', command=on_no, fg_color='red', hover_color='darkred'
         )
         no_button.pack(side='left', padx=5)
 
     def run(self):
-        """运行GUI应用"""
+        """Run GUI application"""
         self.root.mainloop()
 
 
@@ -616,21 +616,21 @@ class SyncClipboardGUI:
     '--config',
     '-c',
     type=click.Path(exists=False, dir_okay=False, path_type=Path),
-    help='指定配置文件的路径',
+    help='Specify the configuration file path',
 )
 @click.version_option(
-    __version__, '--version', '-v', message='SyncClipboard GUI %(version)s - 跨设备剪贴板同步工具'
+    __version__, '--version', '-v', message='SyncClipboard GUI %(version)s - Cross-device clipboard sync tool'
 )
 def main(config):
     """
-    SyncClipboard GUI - 跨设备剪贴板同步工具的图形界面
+    SyncClipboard GUI - Graphical interface for cross-device clipboard synchronization
 
-    提供直观的图形界面来管理剪贴板同步服务，支持服务端和客户端模式。
+    Provides an intuitive GUI for managing clipboard sync service, supporting both server and client modes.
 
     \b
-    示例:
-      使用默认配置: sync-clipboard-gui
-      指定配置文件: sync-clipboard-gui --config "D:\\config\\my_config.json"
+    Examples:
+      Use default config: sync-clipboard-gui
+      Specify config file: sync-clipboard-gui --config "D:\\config\\my_config.json"
     """
     app = SyncClipboardGUI(config_path=config)
     app.run()

@@ -17,15 +17,15 @@ from src.core.version import __version__
 
 
 def cli_log(message: str) -> None:
-    """CLI 日志输出函数，输出到标准输出"""
+    """CLI logging function that outputs to standard output"""
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f'[{timestamp}] {message}', flush=True)
 
 
 def signal_handler(signum, frame):
-    """信号处理函数，用于优雅退出"""
+    """Signal handler for graceful shutdown"""
     logger = get_logger('cli')
-    logger.info('接收到退出信号，正在停止服务...')
+    logger.info('Received shutdown signal, stopping service...')
     sys.exit(0)
 
 
@@ -35,87 +35,87 @@ def signal_handler(signum, frame):
     '-m',
     type=click.Choice(['server', 'client'], case_sensitive=False),
     required=True,
-    help='运行模式: server (服务端) 或 client (客户端)',
+    help='Run mode: server or client',
 )
-@click.option('--host', '-h', default='127.0.0.1', help='服务器主机地址 (默认: 127.0.0.1)')
-@click.option('--port', '-p', default=8765, type=int, help='服务器端口号 (默认: 8765)')
+@click.option('--host', '-h', default='127.0.0.1', help='Server host address (default: 127.0.0.1)')
+@click.option('--port', '-p', default=8765, type=int, help='Server port number (default: 8765)')
 @click.version_option(
-    __version__, '--version', '-v', message='SyncClipboard %(version)s - 跨设备剪贴板同步工具'
+    __version__, '--version', '-v', message='SyncClipboard %(version)s - Cross-device clipboard sync tool'
 )
 def main(mode, host, port):
     """
-    SyncClipboard - 跨设备剪贴板同步工具
+    SyncClipboard - Cross-device clipboard synchronization tool
 
-    支持 Server-Client 架构的剪贴板内容同步:
-
-    \b
-    服务端模式 (server):
-      - 作为中央枢纽接收和广播剪贴板内容
-      - 同时监听本地剪贴板变化并参与同步
+    Supports Server-Client architecture for clipboard content synchronization:
 
     \b
-    客户端模式 (client):
-      - 连接到服务端进行剪贴板同步
-      - 支持自动重连功能
+    Server mode:
+      - Acts as a central hub to receive and broadcast clipboard content
+      - Monitors local clipboard changes and participates in synchronization
 
     \b
-    示例:
-      启动服务端: sync-clipboard --mode server --host 0.0.0.0 --port 8765
-      启动客户端: sync-clipboard --mode client --host 192.168.1.100 --port 8765
+    Client mode:
+      - Connects to the server for clipboard synchronization
+      - Supports automatic reconnection
+
+    \b
+    Examples:
+      Start server: sync-clipboard --mode server --host 0.0.0.0 --port 8765
+      Start client: sync-clipboard --mode client --host 192.168.1.100 --port 8765
     """
 
-    # 设置信号处理器，支持优雅退出
+    # Set up signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     if hasattr(signal, 'SIGTERM'):
         signal.signal(signal.SIGTERM, signal_handler)
 
-    # 初始化日志记录器
+    # Initialize logger
     logger = get_logger('cli', cli_log)
 
-    # 显示启动信息
-    logger.info(f'SyncClipboard {__version__} - 启动 {mode} 模式')
-    logger.info(f'服务器地址: {host}:{port}')
-    logger.info('按 Ctrl+C 退出程序')
+    # Display startup information
+    logger.info(f'SyncClipboard {__version__} - Starting {mode} mode')
+    logger.info(f'Server address: {host}:{port}')
+    logger.info('Press Ctrl+C to exit')
     logger.info('-' * 40)
 
-    # 验证配置参数
+    # Validate configuration parameters
     try:
         if not host or not host.strip():
-            raise ConfigurationError('主机地址不能为空')
+            raise ConfigurationError('Host address cannot be empty')
         if not (1 <= port <= 65535):
-            raise ConfigurationError(f'端口号必须在 1-65535 范围内，当前值: {port}')
+            raise ConfigurationError(f'Port must be between 1-65535, current value: {port}')
     except ConfigurationError as e:
-        logger.error(f'配置错误: {e}')
+        logger.error(f'Configuration error: {e}')
         sys.exit(1)
 
-    # 创建同步实例，使用 CLI 日志函数
+    # Create synchronization instance with CLI log callback
     sync_clipboard = None
     try:
         sync_clipboard = ClipboardSync(host, port, mode, log_callback=cli_log)
         sync_clipboard.start_sync()
     except KeyboardInterrupt:
-        logger.info('接收到键盘中断信号，正在停止服务...')
+        logger.info('Received keyboard interrupt, stopping service...')
     except ClipboardConnectionError as e:
-        logger.error(f'连接错误: {e}')
+        logger.error(f'Connection error: {e}')
         sys.exit(1)
     except ConfigurationError as e:
-        logger.error(f'配置错误: {e}')
+        logger.error(f'Configuration error: {e}')
         sys.exit(1)
     except SyncClipboardError as e:
-        logger.error(f'同步剪贴板错误: {e}')
+        logger.error(f'Clipboard synchronization error: {e}')
         sys.exit(1)
     except Exception as e:
-        logger.error(f'运行时发生未知错误: {e}', exc_info=True)
+        logger.error(f'Unknown runtime error: {e}', exc_info=True)
         sys.exit(1)
     finally:
-        # 确保优雅退出
+        # Ensure graceful shutdown
         if sync_clipboard:
             try:
                 sync_clipboard.stop_sync()
-                logger.info('服务已安全停止')
+                logger.info('Service stopped safely')
             except Exception as e:
-                logger.error(f'停止服务时出现错误: {e}')
-        logger.info('程序已退出')
+                logger.error(f'Error while stopping service: {e}')
+        logger.info('Program exited')
 
 
 if __name__ == '__main__':
